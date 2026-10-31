@@ -31,3 +31,17 @@ export async function buildWebviewHtml(webview: vscode.Webview, extensionUri: vs
         .replace(ASSET_REFERENCE, `$1="${assetBase}/`)
         .replace('</head>', `<meta http-equiv="Content-Security-Policy" content="${csp}"></head>`)
 }
+
+/**
+ * 产物缺失时的可见兜底页面。
+ * 由调用方在 buildWebviewHtml 抛错时使用，避免把「未编译」表现成一片空白；
+ * 错误信息可能带尖括号或引号，拼进文本节点前必须先转义。
+ */
+export function buildFallbackHtml(reason: string): string {
+    return `<!doctype html><html><body><h3>微边提示词</h3><p>Webview 资源缺失，请先执行 pnpm run compile（${escapeHtml(reason)}）</p></body></html>`
+}
+
+/** 最小 HTML 转义：只覆盖会破坏文本节点的四个字符，兜底页面无需完整实体表 */
+function escapeHtml(text: string): string {
+    return text.replace(/&/gu, '&amp;').replace(/</gu, '&lt;').replace(/>/gu, '&gt;').replace(/"/gu, '&quot;')
+}

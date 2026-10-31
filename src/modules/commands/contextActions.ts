@@ -9,6 +9,7 @@ import * as vscode from 'vscode'
 import type { ChatMode } from '../../shared/types'
 import type { CodeBuddyBridge } from '../codebuddy/CodeBuddyBridge'
 import type { ActionPromptBuilder } from '../prompt/actions'
+import { dispatchPrompt } from '../codebuddy/dispatchPrompt'
 import {
     createFixPrompt,
     createOptimizePrompt,
@@ -83,12 +84,7 @@ export function registerContextActions(
             return
         }
         const prompt = buildPrompt(describeTarget(target))
-        const result = await bridge.send(prompt, mode)
-        if (result.outcome === 'failed') {
-            await vscode.window.showErrorMessage(result.detail)
-            return
-        }
-        notify(result.outcome === 'sent' ? 'info' : 'warn', result.detail)
+        await dispatchPrompt(bridge, prompt, mode, notify)
     }
 
     const register = (command: string, buildPrompt: ActionPromptBuilder, mode?: ChatMode): void => {

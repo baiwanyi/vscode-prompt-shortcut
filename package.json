@@ -161,10 +161,20 @@
         "configuration": {
             "title": "微边提示词",
             "properties": {
+                "webianPrompt.codebuddy.reuseConversation": {
+                    "type": "boolean",
+                    "default": true,
+                    "markdownDescription": "是否把提示词发送到 CodeBuddy 的当前对话。开启后不再每次新建会话标签；关闭后每次点击都会新建会话。"
+                },
                 "webianPrompt.codebuddy.sendCommand": {
                     "type": "string",
+                    "default": "tencentcloud.codingcopilot.chat.sendMessage",
+                    "markdownDescription": "复用当前对话时调用的命令 ID。默认使用 CodeBuddy 内置的 `chat.sendMessage`（发往当前会话，不新建会话）。若目标版本变更，可在此改为自定义命令。"
+                },
+                "webianPrompt.codebuddy.newChatCommand": {
+                    "type": "string",
                     "default": "tencentcloud.codingcopilot.sendToChat",
-                    "markdownDescription": "把提示词发送到 CodeBuddy 对话所调用的命令 ID。默认使用 CodeBuddy 内置的 `sendToChat`（新建对话并自动发送）。若目标版本变更，可在此改为自定义命令。"
+                    "markdownDescription": "复用当前对话失败时用于新建会话的命令 ID。默认使用 CodeBuddy 内置的 `sendToChat`（新建对话并自动发送）。"
                 },
                 "webianPrompt.codebuddy.mode": {
                     "type": "string",

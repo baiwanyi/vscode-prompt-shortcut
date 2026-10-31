@@ -15,16 +15,20 @@ import type { ChatMode } from './shared/types'
 
 const SIDEBAR_VIEW_ID = 'webianPrompt.sidebar'
 const SIDEBAR_CONTAINER_ID = 'webianPrompt'
-const DEFAULT_SEND_COMMAND = 'tencentcloud.codingcopilot.sendToChat'
+const DEFAULT_SEND_COMMAND = 'tencentcloud.codingcopilot.chat.sendMessage'
+const DEFAULT_NEW_CHAT_COMMAND = 'tencentcloud.codingcopilot.sendToChat'
 
 function readBridgeConfig(): BridgeConfig {
     const config = vscode.workspace.getConfiguration('webianPrompt')
     const mode = config.get<ChatMode>('codebuddy.mode', 'craft')
     return {
         sendCommand: config.get<string>('codebuddy.sendCommand', DEFAULT_SEND_COMMAND) || DEFAULT_SEND_COMMAND,
+        newChatCommand:
+            config.get<string>('codebuddy.newChatCommand', DEFAULT_NEW_CHAT_COMMAND) || DEFAULT_NEW_CHAT_COMMAND,
         mode,
         autoSend: config.get<boolean>('codebuddy.autoSend', true),
         fallbackToClipboard: config.get<boolean>('codebuddy.fallbackToClipboard', true),
+        reuseConversation: config.get<boolean>('codebuddy.reuseConversation', true),
     }
 }
 

@@ -1,107 +1,72 @@
 /**
- * 侧边栏 Webview 提供者：承载提示词面板的全部交互。
- * 采用「宿主持有状态、Webview 无状态渲染」的模式：Webview 只发意图，宿主完成校验与持久化后
- * 再回推完整状态，避免两侧状态不一致；HTML 装配与 CSP 注入统一交给 webviewHtml。
- * 注意：Webview 消息一律视为不可信输入，模板正文与 id 需在宿主侧重新校验后再落盘；
- * HTML 为异步读盘，加载失败时以可见兜底页面提示重新编译，不静默留白。
+ * 侧边栏 Webview 提供者：把提示词业务装配到 Webview 视图上。
+ * 采用「宿主持有状态、Webview 无状态渲染」的模式：Webview 只发意图，宿主完成校验与持久化后再回推完整状态；
+ * 视图装配、握手缓存与消息下发交给 WebviewMessenger，发送节奏交给 CodeBuddyAvailabilityPoller，
+ * 本类只保留「拿到意图 → 调用领域逻辑 → 推回状态」这一条主线。
+ * 注意：Webview 消息一律视为不可信输入，模板正文与 id 需重新校验后再落盘；
+ * 探测期间视图可能被销毁，推送前要用 hasView 复核，避免向已释放的 webview 继续调度。
  */
 import * as vscode from 'vscode'
-import type { HostToWebviewMessage, WebviewToHostMessage } from '../../shared/messages'
+import { WebviewMessenger } from './WebviewMessenger'
+import type { WebviewToHostMessage } from '../../shared/messages'
 import type { PromptDraft, PromptStatePayload, PromptTemplate } from '../../shared/types'
 import type { CodeBuddyBridge } from '../codebuddy/CodeBuddyBridge'
 import type { PromptStore } from '../prompt/PromptStore'
-import { buildWebviewHtml } from '../common/webviewHtml'
-
-const MAX_LABEL_LENGTH = 40
-const MAX_PROMPT_LENGTH = 8000
-
-/**
- * 未检测到发送命令后的持续轮询参数。
- * CodeBuddy 的激活耗时随机器性能波动（实测 2-3s，慢机器更久），一遍过的检测会长期误报，
- * 因此改成指数退避轮询：1.5s → 3s → 6s → 12s → 15s 封顶，命中即停止。
- */
-const DETECTION_RETRY_INITIAL_MS = 1500
-const DETECTION_RETRY_MAX_MS = 15000
-const DETECTION_RETRY_BACKOFF_STEPS = 4
-const DETECTION_RETRY_LIMIT = 30
-
-/** 校验 Webview 提交的草稿，返回错误信息数组（空数组表示通过）；正文允许为空 */
-function validateDraft(draft: PromptDraft): string[] {
-    const errors: string[] = []
-    if (!draft.label.trim()) {
-        errors.push('名称不能为空')
-    } else if (draft.label.length > MAX_LABEL_LENGTH) {
-        errors.push(`名称不能超过 ${MAX_LABEL_LENGTH} 个字符`)
-    }
-    if (draft.prompt.length > MAX_PROMPT_LENGTH) {
-        errors.push(`提示词正文不能超过 ${MAX_PROMPT_LENGTH} 个字符`)
-    }
-    return errors
-}
-
-/** 实际发送的文本：正文为空时退回模板名称，让「只发名称」也能作为一条可用提示词 */
-function resolveSendText(template: PromptTemplate): string {
-    return template.prompt.trim() || template.label.trim()
-}
+import { CodeBuddyAvailabilityPoller } from '../codebuddy/CodeBuddyAvailabilityPoller'
+import { dispatchPrompt } from '../codebuddy/dispatchPrompt'
+import { confirmAction } from '../common/confirm'
+import { parseDraft, resolveSendText, validateDraft } from '../prompt/draft'
 
 export class PromptSidebarProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'webianPrompt.sidebar'
 
-    private view: vscode.WebviewView | undefined
+    /** 视图传输层：负责 HTML 装配、握手缓存与消息下发 */
+    private readonly messenger: WebviewMessenger
 
-    /** 视图尚未渲染时需要延后打开的新建编辑器标记 */
-    private pendingNewEditor = false
-
-    /** 发送命令可用性的轮询定时器与已重试次数 */
-    private detectionRetryTimer: ReturnType<typeof setTimeout> | undefined
-    private detectionRetryCount = 0
-
-    /** 视图不可见时暂停轮询，避免后台空转 */
-    private detectionPaused = false
-
-    /** 是否已就「轮询耗尽」提示过一次，避免每次复检都弹 */
-    private detectionExhausted = false
+    /** 发送命令可用性的退避轮询：节奏与去重由该类托管，视图隐藏时暂停 */
+    private readonly poller: CodeBuddyAvailabilityPoller
 
     constructor(
-        private readonly extensionUri: vscode.Uri,
+        extensionUri: vscode.Uri,
         private readonly store: PromptStore,
         private readonly bridge: CodeBuddyBridge,
-    ) {}
-
-    resolveWebviewView(view: vscode.WebviewView): void {
-        this.view = view
-        this.detectionPaused = false
-        const webviewRoot = vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview')
-        view.webview.options = {
-            enableScripts: true,
-            localResourceRoots: [webviewRoot],
-        }
-        void this.renderHtml(view)
-        view.webview.onDidReceiveMessage((message: WebviewToHostMessage) => {
-            void this.handleMessage(message)
-        })
-        view.onDidDispose(() => {
-            this.view = undefined
-            this.resetDetectionRetry()
-        })
-        view.onDidChangeVisibility(() => {
-            if (view.visible) {
-                this.detectionPaused = false
+    ) {
+        this.messenger = new WebviewMessenger(extensionUri)
+        this.poller = new CodeBuddyAvailabilityPoller({
+            onRetry: (): void => {
                 void this.pushState()
-                return
-            }
-            this.detectionPaused = true
-            this.resetDetectionRetry()
+            },
+            onExhausted: (): void => {
+                void this.messenger.post({ type: 'codebuddyMissing' })
+            },
         })
     }
 
-    /** 让 Webview 打开编辑器并新建模板；视图未就绪时先登记，等 ready 消息到达后补发 */
+    resolveWebviewView(view: vscode.WebviewView): void {
+        this.poller.attach()
+        this.messenger.attach(view, {
+            onMessage: (message): void => {
+                void this.handleMessage(message).catch((error: unknown) => {
+                    void this.reportUnexpectedError(error)
+                })
+            },
+            onDispose: (): void => {
+                this.poller.detach()
+            },
+            onVisibilityChange: (visible): void => {
+                if (visible) {
+                    this.poller.setPaused(false)
+                    void this.pushState()
+                    return
+                }
+                this.poller.setPaused(true)
+            },
+        })
+    }
+
+    /** 让 Webview 打开编辑器并新建模板；未握手时由传输层缓存，ready 后补发 */
     async openEditorForNew(): Promise<void> {
-        if (!this.view) {
-            this.pendingNewEditor = true
-            return
-        }
-        await this.pushMessage({ type: 'editPrompt', payload: {} })
+        await this.messenger.openNewPrompt()
     }
 
     /** 通知 Webview 刷新（重置等操作后） */
@@ -111,52 +76,56 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
 
     /** 恢复出厂提示词；命令面板、视图标题栏与 Webview 三处入口共用同一套二次确认 */
     async resetWithConfirm(): Promise<void> {
-        const confirmed = await vscode.window.showWarningMessage(
-            '恢复默认提示词会删除全部自定义模板，是否继续？',
-            { modal: true },
-            '恢复默认',
-        )
-        if (confirmed !== '恢复默认') {
+        const isConfirmed = await confirmAction('恢复默认提示词会删除全部自定义模板，是否继续？', '恢复默认')
+        if (!isConfirmed) {
             return
         }
         await this.store.reset()
         await this.pushState()
-        await this.notify('info', '已恢复默认提示词。')
+        await this.messenger.notify('info', '已恢复默认提示词。')
+    }
+
+    /**
+     * 按 id 取模板，查不到就提示并返回 undefined。
+     * 发送、复制、删除、恢复四个入口共用同一文案，避免同一句提示散落多处后改漏。
+     */
+    private async requirePrompt(id: string): Promise<PromptTemplate | undefined> {
+        const target = this.store.get(id)
+        if (!target) {
+            await this.messenger.notify('warn', '提示词不存在或已被删除。')
+            return undefined
+        }
+        return target
     }
 
     /** 恢复单条内置模板：先确认再执行，避免顺手点错丢掉已改的正文 */
     private async restorePromptById(id: string): Promise<void> {
-        const target = this.store.getAll().find((item) => item.id === id)
+        const target = await this.requirePrompt(id)
         if (!target) {
-            await this.notify('warn', '提示词不存在或已被删除。')
             return
         }
-        const confirmed = await vscode.window.showWarningMessage(
-            `将「${target.label}」恢复为默认内容？当前的修改会丢失。`,
-            { modal: true },
-            '恢复',
-        )
-        if (confirmed !== '恢复') {
+        if (!target.builtin) {
+            await this.messenger.notify('warn', '自定义提示词没有出厂内容，无法恢复默认。')
+            return
+        }
+        const isConfirmed = await confirmAction(`将「${target.label}」恢复为默认内容？当前的修改会丢失。`, '恢复')
+        if (!isConfirmed) {
             return
         }
         await this.store.restoreBuiltin(id)
         await this.pushState()
-        await this.notify('info', `已恢复「${target.label}」的默认内容。`)
+        await this.messenger.notify('info', `已恢复「${target.label}」的默认内容。`)
     }
 
+    /** 消息路由：只负责分发，具体动作各自成方法，便于单点修改与阅读 */
     private async handleMessage(message: WebviewToHostMessage): Promise<void> {
         switch (message.type) {
             case 'ready': {
-                await this.pushState()
-                if (this.pendingNewEditor) {
-                    this.pendingNewEditor = false
-                    await this.pushMessage({ type: 'editPrompt', payload: {} })
-                }
+                await this.handleReady()
                 break
             }
             case 'requestState': {
-                this.resetDetectionRetry()
-                await this.pushState()
+                await this.handleRequestState()
                 break
             }
             case 'runPrompt': {
@@ -164,40 +133,15 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
                 break
             }
             case 'copyPrompt': {
-                const target = this.store.getAll().find((item) => item.id === message.id)
-                if (!target) {
-                    await this.notify('warn', '提示词不存在或已被删除。')
-                    break
-                }
-                await vscode.env.clipboard.writeText(resolveSendText(target))
-                await this.notify('info', `已复制「${target.label}」的提示词。`)
+                await this.copyPromptById(message.id)
                 break
             }
             case 'savePrompt': {
-                const errors = validateDraft(message.draft)
-                if (errors.length > 0) {
-                    await this.notify('error', errors.join('；'))
-                    break
-                }
-                await this.store.save(message.draft)
-                await this.pushState()
-                await this.notify('info', message.draft.id ? '提示词已更新。' : '提示词已创建。')
+                await this.savePrompt(message.draft)
                 break
             }
             case 'deletePrompt': {
-                const list = this.store.getAll()
-                const target = list.find((item) => item.id === message.id)
-                if (!target) {
-                    await this.notify('warn', '提示词不存在或已被删除。')
-                    break
-                }
-                if (target.builtin) {
-                    await this.notify('warn', '内置提示词不可删除，可编辑其正文后使用。')
-                    break
-                }
-                await this.store.remove(message.id)
-                await this.pushState()
-                await this.notify('info', `已删除「${target.label}」。`)
+                await this.deletePromptById(message.id)
                 break
             }
             case 'movePrompt': {
@@ -216,103 +160,103 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async runPromptById(id: string): Promise<void> {
-        const target = this.store.getAll().find((item) => item.id === id)
+    /** ready 握手：标记可推送，再补发握手期间登记的新建编辑器请求 */
+    private async handleReady(): Promise<void> {
+        this.messenger.setReady()
+        await this.pushState()
+        await this.messenger.flushPending()
+    }
+
+    /** 请求刷新：先归零轮询计数，避免沿用上一轮的退避进度 */
+    private async handleRequestState(): Promise<void> {
+        this.poller.reset()
+        await this.pushState()
+    }
+
+    /** 复制提示词正文：与发送共用 resolveSendText，正文为空时复制的也是名称 */
+    private async copyPromptById(id: string): Promise<void> {
+        const target = await this.requirePrompt(id)
         if (!target) {
-            await this.notify('warn', '提示词不存在或已被删除。')
+            return
+        }
+        await vscode.env.clipboard.writeText(resolveSendText(target))
+        await this.messenger.notify('info', `已复制「${target.label}」的提示词。`)
+    }
+
+    /** 保存草稿：先收敛不可信载荷，再走业务校验，最后区分「新增 / 更新」提示 */
+    private async savePrompt(raw: unknown): Promise<void> {
+        const draft = parseDraft(raw)
+        if (!draft) {
+            await this.messenger.notify('error', '提交的内容格式不正确，请刷新面板后重试。')
+            return
+        }
+        const errors = validateDraft(draft)
+        if (errors.length > 0) {
+            await this.messenger.notify('error', errors.join('；'))
+            return
+        }
+        const isExisting = draft.id !== undefined && this.store.get(draft.id) !== undefined
+        await this.store.save(draft)
+        await this.pushState()
+        await this.messenger.notify('info', isExisting ? '提示词已更新。' : '提示词已创建。')
+    }
+
+    /** 删除自定义模板：内置模板拒绝删除并给出替代路径 */
+    private async deletePromptById(id: string): Promise<void> {
+        const target = await this.requirePrompt(id)
+        if (!target) {
+            return
+        }
+        if (target.builtin) {
+            await this.messenger.notify('warn', '内置提示词不可删除，可编辑其正文后使用。')
+            return
+        }
+        await this.store.remove(id)
+        await this.pushState()
+        await this.messenger.notify('info', `已删除「${target.label}」。`)
+    }
+
+    /** 发送单条模板：正文为空时由 resolveSendText 回退为名称 */
+    private async runPromptById(id: string): Promise<void> {
+        const target = await this.requirePrompt(id)
+        if (!target) {
             return
         }
         await this.dispatch(resolveSendText(target), target.mode)
     }
 
+    /** 发送并把结果反馈到面板：编排与右键命令共用 dispatchPrompt，这里只把 toast 通道适配进去 */
     private async dispatch(prompt: string, mode?: PromptDraft['mode']): Promise<void> {
-        const result = await this.bridge.send(prompt, mode)
-        if (result.outcome === 'failed') {
-            await this.notify('error', result.detail)
-            return
-        }
-        await this.notify(result.outcome === 'sent' ? 'info' : 'warn', result.detail)
+        await dispatchPrompt(this.bridge, prompt, mode, (level, message): void => {
+            void this.messenger.notify(level, message)
+        })
     }
 
     private async pushState(): Promise<void> {
-        if (!this.view) {
+        if (!this.messenger.hasView) {
             return
         }
         const isDetected = await this.bridge.isSendCommandAvailable()
+        // 探测期间视图可能已被销毁：此时既不必推送，也不该继续调度轮询
+        if (!this.messenger.hasView) {
+            return
+        }
         const payload: PromptStatePayload = {
             prompts: this.store.getAll(),
-            codebuddy: {
-                detected: isDetected,
-                commandId: vscode.workspace.getConfiguration('webianPrompt').get<string>('codebuddy.sendCommand', ''),
-                autoSend: vscode.workspace.getConfiguration('webianPrompt').get<boolean>('codebuddy.autoSend', true),
-            },
+            // 命令通路与 autoSend 由 bridge 统一给出，Provider 不再直接触碰配置键
+            codebuddy: this.bridge.getStatus(isDetected),
         }
-        await this.pushMessage({ type: 'state', payload })
+        await this.messenger.post({ type: 'state', payload })
         if (isDetected) {
-            this.resetDetectionRetry()
+            this.poller.reset()
             return
         }
-        this.scheduleDetectionRetry()
+        this.poller.schedule()
     }
 
-    /**
-     * 未检测到发送命令时按退避间隔继续轮询，直到命中或达到次数上限。
-     * 命中后由 pushState 调 resetDetectionRetry 归零，避免命中后还在后台跑。
-     */
-    private scheduleDetectionRetry(): void {
-        if (this.detectionRetryTimer || this.detectionPaused) {
-            return
-        }
-        if (this.detectionRetryCount >= DETECTION_RETRY_LIMIT) {
-            void this.reportDetectionExhausted()
-            return
-        }
-        const step = Math.min(this.detectionRetryCount, DETECTION_RETRY_BACKOFF_STEPS)
-        const delayMs = Math.min(DETECTION_RETRY_INITIAL_MS * 2 ** step, DETECTION_RETRY_MAX_MS)
-        this.detectionRetryCount += 1
-        this.detectionRetryTimer = setTimeout(() => {
-            this.detectionRetryTimer = undefined
-            void this.pushState()
-        }, delayMs)
-    }
-
-    /** 轮询耗尽后只提示一次，由 Webview 弹出带「刷新」按钮的常驻 toast */
-    private async reportDetectionExhausted(): Promise<void> {
-        if (this.detectionExhausted) {
-            return
-        }
-        this.detectionExhausted = true
-        await this.pushMessage({ type: 'codebuddyMissing' })
-    }
-
-    /** 停止轮询并把计数归零；视图可见性变化、命令命中与手动刷新时都走这里 */
-    private resetDetectionRetry(): void {
-        if (this.detectionRetryTimer) {
-            clearTimeout(this.detectionRetryTimer)
-            this.detectionRetryTimer = undefined
-        }
-        this.detectionRetryCount = 0
-        this.detectionExhausted = false
-    }
-
-    private async notify(level: 'info' | 'warn' | 'error', message: string): Promise<void> {
-        await this.pushMessage({ type: 'notify', level, message })
-    }
-
-    private async pushMessage(message: HostToWebviewMessage): Promise<void> {
-        if (!this.view) {
-            return
-        }
-        await this.view.webview.postMessage(message)
-    }
-
-    /** 渲染 Webview HTML：产物缺失说明未编译或打包不完整，此时给可见提示而不是留白 */
-    private async renderHtml(view: vscode.WebviewView): Promise<void> {
-        try {
-            view.webview.html = await buildWebviewHtml(view.webview, this.extensionUri)
-        } catch (error) {
-            const reason = error instanceof Error ? error.message : String(error)
-            view.webview.html = `<!doctype html><html><body><h3>微边提示词</h3><p>Webview 资源缺失，请先执行 pnpm run compile（${reason}）</p></body></html>`
-        }
+    /** 消息处理链路的兜底：详情只留下行日志，界面给可读提示，避免未捕获拒绝导致点击无反应 */
+    private async reportUnexpectedError(error: unknown): Promise<void> {
+        console.error('[webianPrompt] 处理 Webview 消息失败：', error instanceof Error ? error.message : String(error))
+        await this.messenger.notify('error', '操作失败，请重试；若持续出现可重新加载窗口。')
     }
 }

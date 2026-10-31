@@ -21,27 +21,34 @@ webian.prompt/
 │   ├── extension.ts               # 激活入口：装配 store / bridge / provider 并注册命令
 │   ├── modules/                   # 扩展宿主（Node 侧）
 │   │   ├── codebuddy/
-│   │   │   └── CodeBuddyBridge.ts # 与 CodeBuddy 交互的唯一出口（含降级链路）
+│   │   │   ├── CodeBuddyBridge.ts # 与 CodeBuddy 交互的唯一出口（含降级链路）
+│   │   │   ├── CodeBuddyAvailabilityPoller.ts  # 发送命令可用性的退避轮询状态机
+│   │   │   └── dispatchPrompt.ts  # 发送 + 结果反馈的公共编排
 │   │   ├── commands/
 │   │   │   └── contextActions.ts  # 右键五动作：拼目标描述后发往 CodeBuddy
 │   │   ├── common/
+│   │   │   ├── confirm.ts        # modal 二次确认封装（按钮文案同源比较）
 │   │   │   └── webviewHtml.ts     # 读取构建产物，注入 CSP 并重写资源基址
 │   │   ├── prompt/
 │   │   │   ├── actions.ts         # 右键动作提示词（修复/审查/优化/规范/重构）
 │   │   │   ├── defaults.ts        # 侧边栏内置提示词（提交/推送/按顺序/按推荐）
+│   │   │   ├── draft.ts           # 草稿解析 / 校验 / 发送文本规则
 │   │   │   └── PromptStore.ts     # globalState 持久化 + 归一化 + 增删改排序
 │   │   └── views/
-│   │       └── PromptSidebarProvider.ts  # WebviewViewProvider，含消息路由
+│   │       ├── PromptSidebarProvider.ts  # WebviewViewProvider，只做消息路由与业务编排
+│   │       └── WebviewMessenger.ts       # 视图装配、握手缓存与消息下发
 │   ├── webview/                   # 侧边栏界面（浏览器侧）
 │   │   ├── index.html             # Vite HTML 入口（宿主据此注入 CSP）
 │   │   ├── main.tsx / bootstrap.tsx  # 挂载入口与面板引导组件（首屏加载态用 Spinner）
-│   │   ├── components/            # PromptCard、PromptEditorDialog、ui/*（card / dropdown-menu / spinner / tooltip 等）
-│   │   ├── hooks/useHostMessages.ts
+│   │   ├── components/            # PromptItem、PromptEditorDialog、PanelHeader、PromptList、ui/*
+│   │   ├── hooks/                 # useHostMessages / usePromptState / usePromptEditor
 │   │   ├── lib/{vscode,icons}.ts  # 类名合并直接用 cn 包，不再维护 utils
 │   │   └── styles.css             # Tailwind 4 主题令牌映射
-│   └── shared/                    # 两侧共享的类型与消息协议
+│   └── shared/                    # 两侧共享的类型、协议与常量
 │       ├── types.ts
-│       └── messages.ts
+│       ├── messages.ts
+│       ├── guards.ts              # 结构守卫（isRecord）
+│       └── promptLimits.ts        # 名称 / 正文长度上限（两端同源）
 ├── resources/
 │   └── icon.svg                   # 活动栏图标（24x24 单色，currentColor 跟随主题）
 ├── dist/
@@ -54,23 +61,32 @@ webian.prompt/
 
 ## 与 CodeBuddy 的交互方式
 
-### 主通道：`tencentcloud.codingcopilot.sendToChat`
+### 主通道：`tencentcloud.codingcopilot.chat.sendMessage`
 
-CodeBuddy 4.12 内部注册了 `sendToChat` 命令（未在 `contributes.commands` 中公开），其实现为：
+CodeBuddy 4.12 内部注册了 `chat.sendMessage` 命令（未在 `contributes.commands` 中公开）。它把消息交给聊天页但**不带** `newConversation` 参数，因此发往当前会话，不会每次新开一个会话标签：
 
 ```js
-handler({ prompt, mode }) {
-    const action = {
-        prompt,
-        chatType: mode,
-        options: { autoSend: true, newChat: true },
-        extra: { isVsCodeCommand: true, commandId: 'tencentcloud.codingcopilot.sendToChat' },
-    };
-    chatService.activatePage({ path: '/', action, params: { newConversation: true } });
+handler({ message, options }) {
+    const action = { prompt: message, targetConversationId: options?.conversationId };
+    if (options?.mode) await chatService.switchChatMode(options.mode);
+    chatService.activatePage({ path: '/', action });   // 没有 params.newConversation
 }
 ```
 
-`autoSend: true` + `newChat: true` 恰好等价于「打开对话框 → 填入文本 → 点击发送」，因此本扩展直接复用该命令：
+本扩展的调用形态（对话模式经 `options.mode` 传入）：
+
+```ts
+await vscode.commands.executeCommand('tencentcloud.codingcopilot.chat.sendMessage', {
+    message: prompt,
+    options: { mode },
+});
+```
+
+该命令依赖活动栏聊天视图的 rpc，视图尚未加载时会抛 `Chat webview is not ready`；桥接层按 500ms 间隔重试至多 3 次，仍失败才进入回退链路。
+
+### 回退通道：`tencentcloud.codingcopilot.sendToChat`
+
+`sendToChat` 把参数写死为 `options: { autoSend: true, newChat: true }`，并在 `activatePage` 里传 `params: { newConversation: true }`，**必然新建会话**，因此只作为复用失败时的回退：
 
 ```ts
 await vscode.commands.executeCommand('tencentcloud.codingcopilot.sendToChat', { prompt, mode });
@@ -78,20 +94,21 @@ await vscode.commands.executeCommand('tencentcloud.codingcopilot.sendToChat', { 
 
 ### 激活顺序（关键）
 
-该命令由 CodeBuddy 的依赖注入容器在**扩展激活后**注册，未激活时 `executeCommand` 会抛出 command not found。所以发送前固定执行：
+两个命令都由 CodeBuddy 的依赖注入容器在**扩展激活后**注册，未激活时 `executeCommand` 会抛出 command not found。所以发送前固定执行：
 
 1. `executeCommand('coding-copilot.webviews.chat.focus')` —— 打开聊天视图并触发 CodeBuddy 激活；
-2. 等待 400ms 让注册完成；
-3. `getCommands(true)` 校验命令存在后再调用。
+2. 以 250ms 间隔轮询 `getCommands(true)`，直到任一发送命令出现或超时 10s。
 
 ### 降级链路
 
 | 场景 | 行为 |
 | --- | --- |
-| 命令可用 | 直接发送，状态栏提示「已发送」 |
-| 命令不可用 / 调用失败 | 写入剪贴板 + 打开 CodeBuddy 对话框，提示 Ctrl+V 后回车 |
-| CodeBuddy 未安装 | 同上；若关闭 `fallbackToClipboard` 则弹错误提示并给出配置项指引 |
+| `chat.sendMessage` 可用 | 发往当前会话，状态栏提示「已发送到 CodeBuddy 当前对话」 |
+| 复用失败（命令缺失 / rpc 未就绪） | 回退 `sendToChat` 新建会话，提示「已新建对话并发送」 |
+| 两条命令都失败 | 写入剪贴板 + 打开对话框，提示 Ctrl+V 后回车 |
+| `fallbackToClipboard = false` | 两条命令都失败时改弹错误提示并给出配置项指引 |
 | `autoSend = false` | 只复制并聚焦，不发送 |
+| `reuseConversation = false` | 跳过复用，直接走新建会话 |
 
 ### 右键菜单「使用 WebianCode 进行」
 
@@ -132,10 +149,12 @@ pnpm run package    # 产出 releases/webian-prompt-0.1.0.vsix
 
 | 配置 | 默认值 | 说明 |
 | --- | --- | --- |
-| `webianPrompt.codebuddy.sendCommand` | `tencentcloud.codingcopilot.sendToChat` | 发送命令 ID，CodeBuddy 升级改名时可覆盖 |
+| `webianPrompt.codebuddy.reuseConversation` | `true` | 是否发往当前对话；关闭后每次点击都新建会话 |
+| `webianPrompt.codebuddy.sendCommand` | `tencentcloud.codingcopilot.chat.sendMessage` | 复用当前对话的命令 ID |
+| `webianPrompt.codebuddy.newChatCommand` | `tencentcloud.codingcopilot.sendToChat` | 复用失败时新建会话的命令 ID |
 | `webianPrompt.codebuddy.mode` | `craft` | 对话模式：craft / ask / plan |
 | `webianPrompt.codebuddy.autoSend` | `true` | 关闭后只写剪贴板不发送 |
-| `webianPrompt.codebuddy.fallbackToClipboard` | `true` | 未检测到 CodeBuddy 时是否退化为剪贴板 |
+| `webianPrompt.codebuddy.fallbackToClipboard` | `true` | 两条命令都不可用时的剪贴板降级 |
 
 ## 数据存储
 
@@ -143,7 +162,7 @@ pnpm run package    # 产出 releases/webian-prompt-0.1.0.vsix
 
 ## 关键约定与已知限制
 
-1. **CodeBuddy 内部命令属于对方实现细节**。`sendToChat` 与视图 ID `coding-copilot.webviews.chat` 未公开声明，若对方大版本调整，可通过 `webianPrompt.codebuddy.sendCommand` 指向新命令，或依赖剪贴板降级继续可用。
+1. **CodeBuddy 内部命令属于对方实现细节**。`chat.sendMessage`、`sendToChat` 与视图 ID `coding-copilot.webviews.chat` 均未公开声明，若对方大版本调整，可通过 `webianPrompt.codebuddy.sendCommand` / `newChatCommand` 指向新命令，或依赖剪贴板降级继续可用。
 2. **Webview 安全**：CSP 由宿主生成后注入模板，`script-src` / `style-src` 仅放行 `cspSource`，`localResourceRoots` 只放行 `dist/webview`；宿主侧对 Webview 发来的草稿做长度与枚举校验后才落盘。
 3. **TypeScript 双版本**：`typescript` 指向 TS6（`@typescript/typescript6`，提供 `tsc6`）供日常检查与 ESLint 类型服务；`@typescript/native` 指向 TS7 原生编译器（占用 `tsc` 名称）供构建期校验。两版共用 `tsconfig.json`，选项须同时被 6 / 7 接受。
 4. **主题适配**：`src/webview/styles.css` 通过 `@theme inline` 把 shadcn 语义色映射到 `--vscode-*` 变量，并全部带 fallback，明暗主题自动跟随。

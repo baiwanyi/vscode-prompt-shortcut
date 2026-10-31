@@ -23,6 +23,7 @@ import { Input } from '@components/ui/input'
 import { InputGroup, InputGroupAddon, InputGroupText, InputGroupTextarea } from '@components/ui/input-group'
 import { ToggleGroup, ToggleGroupItem } from '@components/ui/toggle-group'
 import { isPromptIconKey } from '@shared/messages'
+import { MAX_LABEL_LENGTH, MAX_PROMPT_LENGTH } from '@shared/promptLimits'
 import type { ChatMode, PromptDraft, PromptIconKey } from '@shared/types'
 import { CHAT_MODES, isChatMode, PROMPT_ICON_KEYS } from '@shared/types'
 import { PROMPT_ICON_LABELS, PROMPT_ICON_MAP } from '@webview/lib/icons'
@@ -103,7 +104,7 @@ export function PromptEditorDialog({ open, draft, onOpenChange, onSubmit }: Prom
                             <Input
                                 id="prompt-label"
                                 value={form.label}
-                                maxLength={40}
+                                maxLength={MAX_LABEL_LENGTH}
                                 placeholder="例如：生成单元测试"
                                 aria-invalid={isLabelInvalid}
                                 onChange={(event) => update('label', event.target.value)}
@@ -172,7 +173,7 @@ export function PromptEditorDialog({ open, draft, onOpenChange, onSubmit }: Prom
                                     id="prompt-body"
                                     value={form.prompt}
                                     rows={9}
-                                    maxLength={8000}
+                                    maxLength={MAX_PROMPT_LENGTH}
                                     className="max-h-56 overflow-y-auto font-mono placeholder:text-sm"
                                     placeholder={'例如：\n请按以下顺序推进本次任务……\n不要修改无关文件。'}
                                     onChange={(event) => update('prompt', event.target.value)}

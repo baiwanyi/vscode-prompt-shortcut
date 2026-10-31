@@ -8,17 +8,13 @@
 import { BUILTIN_PROMPT_IDS, createBuiltinPrompts } from './defaults'
 import type { PromptDraft, PromptTemplate } from '../../shared/types'
 import type * as vscode from 'vscode'
+import { isRecord } from '../../shared/guards'
 import { isPromptIconKey } from '../../shared/messages'
+import { MAX_LABEL_LENGTH, MAX_PROMPT_LENGTH } from '../../shared/promptLimits'
 import { isChatMode } from '../../shared/types'
 
 /** 存储键：既是 globalState 的读写键，也是登记给 Settings Sync 的同步键（见 activate） */
 export const PROMPT_STORAGE_KEY = 'webianPrompt.templates.v1'
-const MAX_LABEL_LENGTH = 40
-const MAX_PROMPT_LENGTH = 8000
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null
-}
 
 /** 把外部输入收敛为一条可信模板，非法字段一律回落到安全默认值 */
 function normalizeTemplate(raw: unknown, index: number): PromptTemplate | null {
@@ -68,6 +64,11 @@ export class PromptStore {
             }
         }
         return result
+    }
+
+    /** 按 id 取单条模板；不存在时返回 undefined，由调用方决定提示文案与后续动作 */
+    get(id: string): PromptTemplate | undefined {
+        return this.getAll().find((item) => item.id === id)
     }
 
     /** 新增或更新模板；draft.id 命中已有模板时为更新 */
