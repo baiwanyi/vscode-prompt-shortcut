@@ -1,25 +1,49 @@
 /**
- * 自定义滚动容器。
- * 用 Radix ScrollArea 统一滚动条样式，避免 Webview 内默认滚动条与编辑器风格割裂；
- * 注意：容器必须显式设置高度（父级 flex-1 + min-h-0），否则不会产生内部滚动。
+ * 自定义滚动容器（shadcn registry 官方实现）。
+ * 滚动条样式与 Viewport 由组件内部维护，调用方只需控制容器高度。
+ * 注意：容器必须有确定高度（父级 flex-1 + min-h-0），否则不会产生内部滚动。
  */
-import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area';
-import type { ComponentProps } from 'react';
-import { cn } from '@webview/lib/utils';
+import * as React from 'react'
+import { cn } from 'cn'
+import { ScrollArea as ScrollAreaPrimitive } from 'radix-ui'
 
-export function ScrollArea({ className, children, ...props }: ComponentProps<typeof ScrollAreaPrimitive.Root>) {
+function ScrollArea({ className, children, ...props }: React.ComponentProps<typeof ScrollAreaPrimitive.Root>) {
     return (
-        <ScrollAreaPrimitive.Root className={cn('relative overflow-hidden', className)} {...props}>
-            <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit]">
+        <ScrollAreaPrimitive.Root data-slot="scroll-area" className={cn('relative', className)} {...props}>
+            <ScrollAreaPrimitive.Viewport
+                data-slot="scroll-area-viewport"
+                className="size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
+            >
                 {children}
             </ScrollAreaPrimitive.Viewport>
-            <ScrollAreaPrimitive.Scrollbar
-                orientation="vertical"
-                className="flex touch-none select-none p-0.5 transition-colors"
-            >
-                <ScrollAreaPrimitive.Thumb className="relative flex-1 rounded-full bg-border" />
-            </ScrollAreaPrimitive.Scrollbar>
+            <ScrollBar />
             <ScrollAreaPrimitive.Corner />
         </ScrollAreaPrimitive.Root>
-    );
+    )
 }
+
+function ScrollBar({
+    className,
+    orientation = 'vertical',
+    ...props
+}: React.ComponentProps<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>) {
+    return (
+        <ScrollAreaPrimitive.ScrollAreaScrollbar
+            data-slot="scroll-area-scrollbar"
+            data-orientation={orientation}
+            orientation={orientation}
+            className={cn(
+                'flex touch-none p-px transition-colors select-none data-horizontal:h-2.5 data-horizontal:flex-col data-horizontal:border-t data-horizontal:border-t-transparent data-vertical:h-full data-vertical:w-2.5 data-vertical:border-l data-vertical:border-l-transparent',
+                className,
+            )}
+            {...props}
+        >
+            <ScrollAreaPrimitive.ScrollAreaThumb
+                data-slot="scroll-area-thumb"
+                className="relative flex-1 rounded-full bg-border"
+            />
+        </ScrollAreaPrimitive.ScrollAreaScrollbar>
+    )
+}
+
+export { ScrollArea, ScrollBar }

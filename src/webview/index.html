@@ -1,0 +1,19 @@
+<!doctype html>
+<!--
+    侧边栏 Webview 的 HTML 入口：只有挂载点与渲染脚本，不含内联脚本、CSP、资源前缀与加载文案。
+    构建期由 Vite 把 ./main.tsx 及其依赖打包成 assets/ 下带 hash 的产物，并改写此处的引用；
+    运行期由扩展宿主读取产物后注入 CSP、把 assets/ 前缀重写为 asWebviewUri 地址，
+    首屏加载态由 React 侧以 Spinner 呈现，模板不再承担占位文案。
+    关键约束：资源引用只允许写相对路径（./ 或 assets/），宿主按此前缀重写，绝对路径与外链会被 CSP 拦下。
+-->
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>微边提示词</title>
+    </head>
+    <body>
+        <div id="root"></div>
+        <script type="module" src="./main.tsx"></script>
+    </body>
+</html>

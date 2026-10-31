@@ -13,8 +13,8 @@ import {
     Terminal,
     Upload,
     type LucideIcon,
-} from 'lucide-react';
-import type { PromptIconKey } from '@shared/types';
+} from 'lucide-react'
+import type { PromptIconKey } from '@shared/types'
 
 export const PROMPT_ICON_MAP: Record<PromptIconKey, LucideIcon> = {
     'git-commit': GitCommit,
@@ -25,7 +25,7 @@ export const PROMPT_ICON_MAP: Record<PromptIconKey, LucideIcon> = {
     search: Search,
     'file-text': FileText,
     terminal: Terminal,
-};
+}
 
 export const PROMPT_ICON_LABELS: Record<PromptIconKey, string> = {
     'git-commit': '提交',
@@ -36,4 +36,4 @@ export const PROMPT_ICON_LABELS: Record<PromptIconKey, string> = {
     search: '检索',
     'file-text': '文档',
     terminal: '终端',
-};
+}

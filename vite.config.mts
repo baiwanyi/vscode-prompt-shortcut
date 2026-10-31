@@ -1,17 +1,20 @@
 /**
  * Webview 构建配置（Vite + React 19 + Tailwind CSS 4）。
- * 以 library/iife 模式产出固定文件名的 app.js 与 app.css，便于扩展侧用 asWebviewUri 静态引用；
- * 不使用 hash 文件名是因为 webview HTML 由扩展宿主手写生成，无法感知构建期 hash。
- * 产物落在 dist/webview，与宿主产物 dist/extension.js 同属 dist，但 emptyOutDir 只清理子目录，不会误删宿主包。
+ * 以 src/webview/index.html 为 HTML 入口，产物为 dist/webview/index.html 与 assets/ 下带 hash 的 js/css；
+ * base 设为 './' 让产物内部引用保持相对路径，宿主侧再把 assets/ 前缀重写为 asWebviewUri 地址。
+ * 注意：不使用 library 模式——HTML 入口才会让 Vite 自动注入带 hash 的资源引用，宿主无需感知文件名；
+ * root 落在 src/webview，构建范围只由 index.html 的依赖图决定，扩展宿主源码不参与。
  */
-import { fileURLToPath, URL } from 'node:url';
-import tailwindcss from '@tailwindcss/vite';
-import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { fileURLToPath, URL } from 'node:url'
+import tailwindcss from '@tailwindcss/vite'
+import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
 
-const r = (p: string): string => fileURLToPath(new URL(p, import.meta.url));
+const r = (p: string): string => fileURLToPath(new URL(p, import.meta.url))
 
 export default defineConfig({
+    root: r('./src/webview'),
+    base: './',
     plugins: [react(), tailwindcss()],
     resolve: {
         alias: {
@@ -22,22 +25,12 @@ export default defineConfig({
     },
     build: {
         outDir: r('./dist/webview'),
+        // 产物目录在 root 之外，必须显式开启清理，否则旧产物会残留
         emptyOutDir: true,
         cssCodeSplit: false,
         minify: 'esbuild',
-        lib: {
-            entry: r('./src/webview/main.tsx'),
-            name: 'WebianPromptWebview',
-            formats: ['iife'],
-            fileName: () => 'app.js',
-        },
         rollupOptions: {
-            output: {
-                assetFileNames: (assetInfo) => {
-                    const name = assetInfo.names?.[0] ?? assetInfo.name ?? '';
-                    return name.endsWith('.css') ? 'app.css' : 'assets/[name][extname]';
-                },
-            },
+            input: r('./src/webview/index.html'),
         },
     },
-});
+})

@@ -1,22 +1,28 @@
+// 任务配置：compile 为 F5 调试前的一次性构建（TS7 类型校验 + 宿主 + webview）；watch 为常驻监听，配合 launch.json 的「运行扩展（跳过编译）」使用
 {
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build",
+            // 一次性构建：先 tsc --noEmit（@typescript/native，TS7）校验类型，再 esbuild 打包宿主、vite 构建 webview
             "type": "shell",
-            "command": "pnpm run build",
-            "problemMatcher": [],
+            "label": "compile",
+            "command": "pnpm run compile",
             "group": {
                 "kind": "build",
                 "isDefault": true
-            }
+            },
+            "problemMatcher": "$tsc"
         },
         {
-            "label": "watch",
+            // 常驻：tsc6 类型检查 + 宿主 esbuild + webview vite 三路监听，顺序与 pnpm run watch 一致。
+            // 不可作为 preLaunchTask——后台任务需要 problemMatcher 的 background 配置判定就绪，
+            // 三路并发输出无法可靠匹配，故只供「终端 → 运行任务」手动启动
             "type": "shell",
+            "label": "watch",
             "command": "pnpm run watch",
-            "problemMatcher": [],
-            "isBackground": true
+            "group": "build",
+            "isBackground": true,
+            "problemMatcher": []
         }
     ]
 }

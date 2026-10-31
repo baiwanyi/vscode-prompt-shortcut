@@ -4,23 +4,31 @@
  * 内置模板允许修改文案，但名称之外的结构（id / builtin）由原始数据保留。
  * 注意：draft 变化时必须重置表单，否则会出现「切换编辑对象后仍显示上一条内容」的问题。
  */
-import { useEffect, useMemo, useState } from 'react';
-import { Button } from '@components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@components/ui/dialog';
-import { Input } from '@components/ui/input';
-import { Label } from '@components/ui/label';
-import { Textarea } from '@components/ui/textarea';
-import { PROMPT_ICON_LABELS, PROMPT_ICON_MAP } from '@webview/lib/icons';
-import { cn } from '@webview/lib/utils';
-import type { ChatMode, PromptDraft, PromptIconKey } from '@shared/types';
-import { CHAT_MODES, PROMPT_ICON_KEYS } from '@shared/types';
+import { cn } from 'cn'
+import { useMemo, useState } from 'react'
+import { Button } from '@components/ui/button'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@components/ui/dialog'
+import { Input } from '@components/ui/input'
+import { Label } from '@components/ui/label'
+import { Textarea } from '@components/ui/textarea'
+import type { ChatMode, PromptDraft, PromptIconKey } from '@shared/types'
+import { CHAT_MODES, PROMPT_ICON_KEYS } from '@shared/types'
+import { PROMPT_ICON_LABELS, PROMPT_ICON_MAP } from '@webview/lib/icons'
+import type { JSX } from 'react'
 
 const MODE_LABELS: Record<ChatMode, string> = {
     craft: 'Craft（直接改代码）',
     ask: 'Ask（只问答不改动）',
     plan: 'Plan（先出方案）',
     debug: 'Debug（定位问题）',
-};
+}
 
 const EMPTY_DRAFT: PromptDraft = {
     label: '',
@@ -28,51 +36,55 @@ const EMPTY_DRAFT: PromptDraft = {
     prompt: '',
     icon: 'sparkles',
     mode: 'craft',
-};
-
-interface PromptEditorDialogProps {
-    open: boolean;
-    draft: PromptDraft | null;
-    onOpenChange: (open: boolean) => void;
-    onSubmit: (draft: PromptDraft) => void;
 }
 
-export function PromptEditorDialog({ open, draft, onOpenChange, onSubmit }: PromptEditorDialogProps) {
-    const [form, setForm] = useState<PromptDraft>(EMPTY_DRAFT);
-    const [touched, setTouched] = useState(false);
+interface PromptEditorDialogProps {
+    open: boolean
+    draft: PromptDraft | null
+    onOpenChange: (open: boolean) => void
+    onSubmit: (draft: PromptDraft) => void
+}
 
-    useEffect(() => {
-        setForm(draft ?? EMPTY_DRAFT);
-        setTouched(false);
-    }, [draft, open]);
+export function PromptEditorDialog({ open, draft, onOpenChange, onSubmit }: PromptEditorDialogProps): JSX.Element {
+    const [form, setForm] = useState<PromptDraft>(draft ?? EMPTY_DRAFT)
+    const [isTouched, setIsTouched] = useState(false)
+    const [syncSource, setSyncSource] = useState<{ draft: PromptDraft | null; open: boolean }>({ draft, open })
+
+    // 切换编辑对象或重新打开时重置表单：按 React 官方「props 变化时调整 state」模式在渲染期同步，
+    // 避免在 effect 中同步 setState 触发额外一轮渲染；条件只成立一次，不会形成循环
+    if (syncSource.draft !== draft || syncSource.open !== open) {
+        setSyncSource({ draft, open })
+        setForm(draft ?? EMPTY_DRAFT)
+        setIsTouched(false)
+    }
 
     const errors = useMemo(() => {
-        const result: string[] = [];
+        const result: string[] = []
         if (!form.label.trim()) {
-            result.push('名称不能为空');
+            result.push('名称不能为空')
         }
         if (!form.prompt.trim()) {
-            result.push('提示词正文不能为空');
+            result.push('提示词正文不能为空')
         }
-        return result;
-    }, [form.label, form.prompt]);
+        return result
+    }, [form.label, form.prompt])
 
     const update = <K extends keyof PromptDraft>(key: K, value: PromptDraft[K]): void => {
-        setForm((prev) => ({ ...prev, [key]: value }));
-    };
+        setForm((prev) => ({ ...prev, [key]: value }))
+    }
 
     const handleSubmit = (): void => {
-        setTouched(true);
+        setIsTouched(true)
         if (errors.length > 0) {
-            return;
+            return
         }
         onSubmit({
             ...form,
             label: form.label.trim(),
             description: form.description.trim(),
             prompt: form.prompt.trim(),
-        });
-    };
+        })
+    }
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -111,26 +123,26 @@ export function PromptEditorDialog({ open, draft, onOpenChange, onSubmit }: Prom
                         <Label>图标</Label>
                         <div className="flex flex-wrap gap-1">
                             {PROMPT_ICON_KEYS.map((key: PromptIconKey) => {
-                                const Icon = PROMPT_ICON_MAP[key];
-                                const active = form.icon === key;
+                                const Icon = PROMPT_ICON_MAP[key]
+                                const isActive = form.icon === key
                                 return (
                                     <button
                                         key={key}
                                         type="button"
                                         title={PROMPT_ICON_LABELS[key]}
                                         aria-label={PROMPT_ICON_LABELS[key]}
-                                        aria-pressed={active}
+                                        aria-pressed={isActive}
                                         className={cn(
-                                            'flex h-6 w-6 items-center justify-center rounded border transition-colors',
-                                            active
+                                            'flex size-6 items-center justify-center rounded border transition-colors',
+                                            isActive
                                                 ? 'border-ring bg-primary/20 text-foreground'
                                                 : 'border-border text-muted-foreground hover:bg-accent',
                                         )}
                                         onClick={() => update('icon', key)}
                                     >
-                                        <Icon className="h-3.5 w-3.5" />
+                                        <Icon className="size-3.5" />
                                     </button>
-                                );
+                                )
                             })}
                         </div>
                     </div>
@@ -167,7 +179,7 @@ export function PromptEditorDialog({ open, draft, onOpenChange, onSubmit }: Prom
                         />
                     </div>
 
-                    {touched && errors.length > 0 ? (
+                    {isTouched && errors.length > 0 ? (
                         <p className="text-[11px] text-destructive-foreground">{errors.join('；')}</p>
                     ) : null}
                 </div>
@@ -182,5 +194,5 @@ export function PromptEditorDialog({ open, draft, onOpenChange, onSubmit }: Prom
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    );
+    )
 }

@@ -2,11 +2,20 @@
     "$schema": "https://json.schemastore.org/package.json",
     "name": "webian-prompt",
     "displayName": "微边提示词",
-    "description": "AI 提示词管理器：一键把预设提示词发送到 CodeBuddy 对话，并支持从编辑器右键调用 CodeBuddy 修复与审查。",
+    "description": "AI 提示词管理器：一键把预设提示词发送到 CodeBuddy 对话；编辑器右键通过「使用 WebianCode 进行」子菜单提供修复、审查、优化、规范、重构。",
     "version": "0.1.0",
-    "publisher": "webian",
+    "publisher": "Baiwanyi",
     "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/baiwanyi/webian.prompt.git"
+    },
+    "homepage": "https://github.com/baiwanyi/webian.prompt#readme",
+    "bugs": {
+        "url": "https://github.com/baiwanyi/webian.prompt/issues"
+    },
     "private": true,
+    "icon": "resources/icon.png",
     "engines": {
         "vscode": "^1.144.0"
     },
@@ -36,29 +45,87 @@
                 "icon": "$(add)"
             },
             {
+                "command": "webianPrompt.refresh",
+                "title": "刷新提示词",
+                "category": "微边提示词",
+                "icon": "$(refresh)"
+            },
+            {
                 "command": "webianPrompt.resetPrompts",
                 "title": "恢复默认提示词",
-                "category": "微边提示词"
+                "category": "微边提示词",
+                "icon": "$(history)"
             },
             {
                 "command": "webianPrompt.fixWithCodeBuddy",
-                "title": "使用 CodeBuddy 修复",
+                "title": "修复",
                 "category": "微边代码"
             },
             {
                 "command": "webianPrompt.reviewWithCodeBuddy",
-                "title": "使用 CodeBuddy 审查",
+                "title": "审查",
+                "category": "微边代码"
+            },
+            {
+                "command": "webianPrompt.optimizeWithCodeBuddy",
+                "title": "优化",
+                "category": "微边代码"
+            },
+            {
+                "command": "webianPrompt.styleWithCodeBuddy",
+                "title": "规范",
+                "category": "微边代码"
+            },
+            {
+                "command": "webianPrompt.refactorWithCodeBuddy",
+                "title": "重构",
                 "category": "微边代码"
             }
         ],
         "submenus": [
             {
                 "id": "webianPrompt.editorContext",
-                "label": "微边代码",
+                "label": "使用 WebianCode 进行",
                 "icon": "resources/icon.svg"
             }
         ],
         "menus": {
+            "editor/context": [
+                {
+                    "submenu": "webianPrompt.editorContext",
+                    "when": "editorTextFocus",
+                    "group": "navigation@1.47"
+                }
+            ],
+            "explorer/context": [
+                {
+                    "submenu": "webianPrompt.editorContext",
+                    "when": "resourceScheme == file && !explorerResourceIsFolder",
+                    "group": "1_webian@1"
+                }
+            ],
+            "webianPrompt.editorContext": [
+                {
+                    "command": "webianPrompt.fixWithCodeBuddy",
+                    "group": "1_webian@1"
+                },
+                {
+                    "command": "webianPrompt.reviewWithCodeBuddy",
+                    "group": "1_webian@2"
+                },
+                {
+                    "command": "webianPrompt.optimizeWithCodeBuddy",
+                    "group": "1_webian@3"
+                },
+                {
+                    "command": "webianPrompt.styleWithCodeBuddy",
+                    "group": "1_webian@4"
+                },
+                {
+                    "command": "webianPrompt.refactorWithCodeBuddy",
+                    "group": "1_webian@5"
+                }
+            ],
             "view/title": [
                 {
                     "command": "webianPrompt.newPrompt",
@@ -66,38 +133,14 @@
                     "group": "navigation@1"
                 },
                 {
+                    "command": "webianPrompt.refresh",
+                    "when": "view == webianPrompt.sidebar",
+                    "group": "navigation@2"
+                },
+                {
                     "command": "webianPrompt.resetPrompts",
                     "when": "view == webianPrompt.sidebar",
-                    "group": "1_settings@1"
-                }
-            ],
-            "editor/context": [
-                {
-                    "submenu": "webianPrompt.editorContext",
-                    "when": "editorTextFocus",
-                    "group": "1_webian@1"
-                }
-            ],
-            "webianPrompt.editorContext": [
-                {
-                    "command": "webianPrompt.fixWithCodeBuddy",
-                    "group": "1_fix@1"
-                },
-                {
-                    "command": "webianPrompt.reviewWithCodeBuddy",
-                    "group": "2_review@1"
-                }
-            ],
-            "explorer/context": [
-                {
-                    "command": "webianPrompt.fixWithCodeBuddy",
-                    "when": "resourceScheme == file && !explorerResourceIsFolder",
-                    "group": "1_webian@1"
-                },
-                {
-                    "command": "webianPrompt.reviewWithCodeBuddy",
-                    "when": "resourceScheme == file && !explorerResourceIsFolder",
-                    "group": "1_webian@2"
+                    "group": "navigation@3"
                 }
             ]
         },
@@ -115,9 +158,8 @@
                 {
                     "type": "webview",
                     "id": "webianPrompt.sidebar",
-                    "name": "提示词",
-                    "icon": "resources/icon.svg",
-                    "contextualTitle": "微边提示词"
+                    "name": "微边提示词",
+                    "icon": "resources/icon.svg"
                 }
             ]
         },
@@ -154,40 +196,47 @@
         }
     },
     "scripts": {
-        "vscode:prepublish": "pnpm run build",
-        "dev": "pnpm run build && pnpm run watch",
-        "build": "pnpm run build:webview && pnpm run build:extension",
-        "build:webview": "vite build",
-        "build:extension": "node scripts/esbuild.mjs",
-        "watch": "concurrently -k -n webview,ext -c cyan,magenta \"vite build --watch\" \"node scripts/esbuild.mjs --watch\"",
-        "typecheck": "tsc --noEmit -p tsconfig.json",
-        "check": "pnpm run typecheck && pnpm run build",
-        "package": "pnpm run build && vsce package --no-dependencies --out releases/"
+        "compile": "tsc --noEmit && node scripts/esbuild.mjs && vite build",
+        "watch": "concurrently -k -n ts,host,web -c yellow,blue,green \"tsc6 --noEmit --watch\" \"node scripts/esbuild.mjs --watch\" \"vite build --watch\"",
+        "typecheck": "tsc6 --noEmit",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "verify": "pnpm run typecheck && pnpm run lint && prettier --check .",
+        "package": "pnpm run compile && vsce package --no-dependencies --out releases/"
     },
     "devDependencies": {
-        "@radix-ui/react-dialog": "^1.3.1",
-        "@radix-ui/react-label": "^2.1.17",
-        "@radix-ui/react-scroll-area": "^1.4.0",
-        "@radix-ui/react-slot": "^1.5.0",
+        "@eslint-react/eslint-plugin": "^5.28.8",
+        "@eslint/js": "^10.0.1",
         "@tailwindcss/vite": "^4.3.3",
         "@types/node": "^26.6.6",
         "@types/react": "^19.3.0",
         "@types/react-dom": "^19.3.0",
         "@types/vscode": "1.144.0",
+        "@typescript/native": "npm:typescript@^7.0.2",
         "@vitejs/plugin-react": "^6.1.2",
         "@vscode/vsce": "^4.1.0",
         "class-variance-authority": "^0.7.1",
-        "clsx": "^2.1.1",
+        "cn": "^0.5.1",
         "concurrently": "^10.0.6",
         "esbuild": "^0.28.2",
+        "eslint": "^10.14.0",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-import-resolver-typescript": "^4.4.5",
+        "eslint-plugin-import-x": "^4.17.1",
+        "eslint-plugin-react-hooks": "^7.1.1",
+        "eslint-plugin-react-refresh": "^0.5.7",
+        "globals": "^17.13.0",
         "lucide-react": "^1.65.0",
+        "next-themes": "^0.4.6",
+        "prettier": "^3.9.10",
         "radix-ui": "^1.8.1",
         "react": "^19.3.1",
         "react-dom": "^19.3.1",
-        "tailwind-merge": "^3.7.0",
+        "sonner": "^2.0.8",
         "tailwindcss": "^4.3.3",
         "tw-animate-css": "^1.4.0",
-        "typescript": "^7.0.2",
+        "typescript": "npm:@typescript/typescript6@^6.0.2",
+        "typescript-eslint": "^8.72.1",
         "vite": "^8.3.5"
     }
 }

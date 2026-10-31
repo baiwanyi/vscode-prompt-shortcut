@@ -1,21 +1,23 @@
 /**
- * 单行输入框组件。
- * 复用 VSCode 的 input 主题色与 focusBorder，保证与编辑器原生输入框视觉一致；
- * 注意：不要在组件内部维护 value 状态，受控/非受控一律交给调用方。
+ * 单行输入框（shadcn registry 官方实现）。
+ * 校验态用 aria-invalid 表达，配合 Field 的 data-invalid 呈现错误样式。
+ * 注意：不要在调用处覆盖边框与背景色，颜色统一由 border-input 与主题令牌决定。
  */
-import type { InputHTMLAttributes } from 'react';
-import { cn } from '@webview/lib/utils';
+import * as React from 'react'
+import { cn } from 'cn'
 
-export function Input({ className, type = 'text', ...props }: InputHTMLAttributes<HTMLInputElement>) {
+function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
     return (
         <input
             type={type}
+            data-slot="input"
             className={cn(
-                'flex h-7 w-full rounded-md border border-input bg-muted px-2 py-1 text-[13px] text-foreground',
-                'placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
+                'h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-2.5 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40',
                 className,
             )}
             {...props}
         />
-    );
+    )
 }
+
+export { Input }

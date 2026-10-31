@@ -1,14 +1,15 @@
 # 微边提示词（webian-prompt）
 
-VSCode 扩展：把常用 AI 提示词沉淀成侧边栏按钮，点击即发往 CodeBuddy 对话；同时在编辑器右键提供「微边代码」菜单，一键把当前文件交给 CodeBuddy 修复或审查。
+VSCode 扩展：把常用 AI 提示词沉淀成侧边栏卡片，点击即发往 CodeBuddy 对话；编辑器右键通过「使用 WebianCode 进行」子菜单提供修复、审查、优化、规范、重构五个动作。
 
 ## 技术栈
 
 | 层 | 选型 |
 | --- | --- |
-| 扩展宿主 | TypeScript 7 + esbuild（CommonJS 单文件产物） |
-| Webview | React 19 + TypeScript 7 + Vite 8 |
-| 样式 | Tailwind CSS 4（CSS-first `@theme`）+ shadcn/ui 风格组件 |
+| 类型 | TypeScript 6 检查（`tsc6`）+ TypeScript 7 编译（`tsc`） |
+| 扩展宿主 | esbuild（CommonJS 单文件产物） |
+| Webview | React 19 + Vite 8 |
+| 样式 | Tailwind CSS 4（CSS-first `@theme`）+ shadcn registry 官方组件（`pnpm dlx shadcn@latest add`） |
 | 图标 | Lucide |
 | 包管理 | pnpm 12 |
 
@@ -17,22 +18,26 @@ VSCode 扩展：把常用 AI 提示词沉淀成侧边栏按钮，点击即发往
 ```
 webian.prompt/
 ├── src/
-│   ├── extension/                 # 扩展宿主（Node 侧）
-│   │   ├── extension.ts           # 激活入口：装配 store / bridge / provider 并注册命令
+│   ├── extension.ts               # 激活入口：装配 store / bridge / provider 并注册命令
+│   ├── modules/                   # 扩展宿主（Node 侧）
 │   │   ├── codebuddy/
 │   │   │   └── CodeBuddyBridge.ts # 与 CodeBuddy 交互的唯一出口（含降级链路）
 │   │   ├── commands/
-│   │   │   └── contextActions.ts  # 右键「微边代码」：/fix 与 /cr
+│   │   │   └── contextActions.ts  # 右键五动作：拼目标描述后发往 CodeBuddy
+│   │   ├── common/
+│   │   │   └── webviewHtml.ts     # 读取构建产物，注入 CSP 并重写资源基址
 │   │   ├── prompt/
-│   │   │   ├── defaults.ts        # 内置提示词（提交/推送/按顺序/按推荐）
+│   │   │   ├── actions.ts         # 右键动作提示词（修复/审查/优化/规范/重构）
+│   │   │   ├── defaults.ts        # 侧边栏内置提示词（提交/推送/按顺序/按推荐）
 │   │   │   └── PromptStore.ts     # globalState 持久化 + 归一化 + 增删改排序
 │   │   └── views/
-│   │       └── PromptSidebarProvider.ts  # WebviewViewProvider，含 CSP 与消息路由
+│   │       └── PromptSidebarProvider.ts  # WebviewViewProvider，含消息路由
 │   ├── webview/                   # 侧边栏界面（浏览器侧）
-│   │   ├── main.tsx / App.tsx
-│   │   ├── components/            # PromptCard、PromptEditorDialog、ui/*
+│   │   ├── index.html             # Vite HTML 入口（宿主据此注入 CSP）
+│   │   ├── main.tsx / App.tsx     # 挂载入口与面板根组件（首屏加载态用 Spinner）
+│   │   ├── components/            # PromptCard、PromptEditorDialog、ui/*（card / dropdown-menu / spinner / tooltip 等）
 │   │   ├── hooks/useHostMessages.ts
-│   │   ├── lib/{vscode,icons,utils}.ts
+│   │   ├── lib/{vscode,icons}.ts  # 类名合并直接用 cn 包，不再维护 utils
 │   │   └── styles.css             # Tailwind 4 主题令牌映射
 │   └── shared/                    # 两侧共享的类型与消息协议
 │       ├── types.ts
@@ -41,7 +46,7 @@ webian.prompt/
 │   └── icon.svg                   # 活动栏图标（24x24 单色，currentColor 跟随主题）
 ├── dist/
 │   ├── extension.js               # 扩展宿主产物（esbuild，CJS）
-│   └── webview/                   # 侧边栏前端产物（Vite：app.js / app.css）
+│   └── webview/                   # 侧边栏前端产物（Vite：index.html + assets/）
 ├── scripts/
 │   └── esbuild.mjs                # 扩展宿主构建脚本（CJS 单文件产物）
 └── vite.config.mts / tsconfig.json
@@ -88,12 +93,19 @@ await vscode.commands.executeCommand('tencentcloud.codingcopilot.sendToChat', { 
 | CodeBuddy 未安装 | 同上；若关闭 `fallbackToClipboard` 则弹错误提示并给出配置项指引 |
 | `autoSend = false` | 只复制并聚焦，不发送 |
 
-### 右键菜单「微边代码」
+### 右键菜单「使用 WebianCode 进行」
 
-`editor/context` 贡献子菜单，两项命令分别拼装：
+`editor/context` 与 `explorer/context` 共用一个子菜单，排在 CodeBuddy 的「添加到对话」之后（同为 `navigation` 分组，因此之间不会出现分隔线）；子菜单内五项同属一个分组，彼此也没有分隔线：
 
-- 修复：`/fix <相对路径>`，有选区时追加 `（第 12-30 行）`
-- 审查：`/cr <相对路径>`，同上
+| 菜单项 | 动作 | 模式 |
+| --- | --- | --- |
+| 修复 | 定位真实成因，最小改动修复 | craft |
+| 审查 | 正确性 / 安全 / 并发与资源释放，只出结论 | ask |
+| 优化 | 四维排查（正确性、安全、边界、性能），分级后按 critical → minor 修复 | craft |
+| 规范 | 按分号、import 顺序、命名、Hooks、客户端指令五类规则检查并修正 | craft |
+| 重构 | 职责分离 / 复用性 / 复杂度 / 耦合度分析，输出提取方案 | ask |
+
+目标文本统一写作 `src/a.ts（第 12-30 行）`，无选区时为 `src/a.ts（整个文件）`。提示词内置在 `src/modules/prompt/actions.ts`，不使用 CodeBuddy 的 `/fix`、`/cr` 斜杠指令，也不依赖其内置修复命令，因此对方指令缺失或改版都不会导致本扩展的命令失效。
 
 路径优先取菜单传入的 `Uri`，回退到 `activeTextEditor`；工作区内使用 `asRelativePath`，无工作区时使用文件名，避免远程/容器场景下绝对路径失效。
 
@@ -101,12 +113,14 @@ await vscode.commands.executeCommand('tencentcloud.codingcopilot.sendToChat', { 
 
 ```bash
 pnpm install
-pnpm run build      # 构建 webview 与扩展宿主
-pnpm run check      # 类型检查 + 构建
-pnpm run watch      # 监听模式（改了代码后按 Ctrl+Shift+P → Reload Window）
+pnpm run compile    # 构建：TS7 类型校验 + esbuild 宿主 + vite webview
+pnpm run typecheck  # 类型检查（TS6）
+pnpm run lint       # ESLint 检查
+pnpm run verify     # 类型检查 + ESLint + Prettier 格式校验
+pnpm run watch      # 监听模式：tsc6 + esbuild + vite 三路（改完按 Ctrl+Shift+P → Reload Window）
 ```
 
-在 VSCode 中按 `F5`（`extensionHost` 配置，preLaunchTask 为 `build`）即可打开扩展开发宿主调试。
+在 VSCode 中按 `F5`（`extensionHost` 配置，preLaunchTask 为 `compile`）即可打开扩展开发宿主调试。
 
 打包：
 
@@ -130,9 +144,9 @@ pnpm run package    # 产出 releases/webian-prompt-0.1.0.vsix
 ## 关键约定与已知限制
 
 1. **CodeBuddy 内部命令属于对方实现细节**。`sendToChat` 与视图 ID `coding-copilot.webviews.chat` 未公开声明，若对方大版本调整，可通过 `webianPrompt.codebuddy.sendCommand` 指向新命令，或依赖剪贴板降级继续可用。
-2. **Webview 安全**：CSP 使用 nonce，`localResourceRoots` 只放行 `dist/webview`；宿主侧对 Webview 发来的草稿做长度与枚举校验后才落盘。
-3. **TypeScript 7 与 ESLint**：`typescript-eslint@8.x` 在检测到 TS ≥ 7 时会直接抛错（上游 issue #10940），因此本项目暂不接入 ESLint，静态检查以 `pnpm run typecheck`（`tsc --noEmit`）为准；待上游支持后可补回。
+2. **Webview 安全**：CSP 由宿主生成后注入模板，`script-src` / `style-src` 仅放行 `cspSource`，`localResourceRoots` 只放行 `dist/webview`；宿主侧对 Webview 发来的草稿做长度与枚举校验后才落盘。
+3. **TypeScript 双版本**：`typescript` 指向 TS6（`@typescript/typescript6`，提供 `tsc6`）供日常检查与 ESLint 类型服务；`@typescript/native` 指向 TS7 原生编译器（占用 `tsc` 名称）供构建期校验。两版共用 `tsconfig.json`，选项须同时被 6 / 7 接受。
 4. **主题适配**：`src/webview/styles.css` 通过 `@theme inline` 把 shadcn 语义色映射到 `--vscode-*` 变量，并全部带 fallback，明暗主题自动跟随。
-5. **产物统一在 `dist/`**：宿主为 `dist/extension.js`（esbuild，CJS），前端为 `dist/webview/app.{js,css}`（Vite，IIFE）。Vite 的 `emptyOutDir` 只清理 `dist/webview` 子目录，不会误删宿主包；两边 watch 并行写入互不冲突。
-6. **构建产物文件名固定**：Webview HTML 由扩展宿主手写生成，无法感知构建期 hash，故 `app.js` / `app.css` 不哈希。
+5. **产物统一在 `dist/`**：宿主为 `dist/extension.js`（esbuild，CJS），前端为 `dist/webview/index.html` 与 `dist/webview/assets/`（Vite，HTML 入口 + 多文件产物）。Vite 的 `emptyOutDir` 只清理 `dist/webview` 子目录，不会误删宿主包；两边 watch 并行写入互不冲突。
+6. **资源基址由宿主重写**：构建产物里资源引用是 `./assets/xxx` 相对路径（`base: './'`），宿主侧 `webviewHtml` 把该前缀替换为 `asWebviewUri` 地址，因此文件名可以带 hash，宿主无需感知具体名字。
 7. **路径别名三处同步**：`@components/*` → `src/webview/components/*`、`@webview/*` → `src/webview/*`、`@shared/*` → `src/shared/*`，同时存在于 `tsconfig.json` 的 `paths`、`vite.config.mts` 的 `resolve.alias` 与 `components.json` 的 `aliases`，改一处必须同步另两处。扩展宿主侧（esbuild）只用相对路径引用 `src/shared`，未接别名。

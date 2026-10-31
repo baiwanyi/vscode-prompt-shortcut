@@ -1,5 +1,7 @@
 {
-    // 类型检查专用配置：产物由 esbuild（扩展宿主）与 Vite（webview）生成，tsc 不产出文件。
+    // 类型配置：产物由 esbuild（扩展宿主）与 Vite（webview）生成，tsc 不产出文件。
+    // 版本分工：日常检查走 TypeScript 6（typescript 包，`pnpm typecheck` 调 tsc6），构建期校验走 TypeScript 7
+    // 原生编译器（@typescript/native 包，`pnpm compile` 内调 tsc）；本文件被两版共用，选项须同时被 6 / 7 接受。
     // 取值依据 TypeScript 7 官方 --init 模板与破坏性变更清单：baseUrl、moduleResolution: node/classic、
     // target: es5 等在 7.0 已移除；module: preserve 隐含 moduleResolution: bundler 与 esModuleInterop。
     "compilerOptions": {
@@ -36,7 +38,7 @@
             "@webview/*": ["./src/webview/*"]
         }
     },
-    // src 覆盖扩展宿主（extension）、webview 与共享层（shared），三处都必须参与类型校验；
+    // src 覆盖扩展宿主（extension.ts + modules）、webview 与共享层（shared），三处都必须参与类型校验；
     // vite.config.mts 一并纳入，保证构建配置本身也不会因 API 变更而失配；
     // resources 只含 svg 资源，scripts 只含 mjs 构建脚本，均不在检查范围
     "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.mts"]

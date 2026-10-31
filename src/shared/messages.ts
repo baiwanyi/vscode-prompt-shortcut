@@ -4,7 +4,7 @@
  * 所有消息只承载纯数据，宿主侧必须重新校验载荷，不可信任 Webview 传入的 id 与正文。
  * 注意：新增消息类型时两侧 switch 必须同时补齐，否则 noFallthroughCasesInSwitch 会报错。
  */
-import type { PromptDraft, PromptIconKey, PromptStatePayload } from './types';
+import type { PromptDraft, PromptIconKey, PromptStatePayload } from './types'
 
 /** Webview -> 宿主 */
 export type WebviewToHostMessage =
@@ -13,18 +13,20 @@ export type WebviewToHostMessage =
     | { type: 'runPrompt'; id: string }
     | { type: 'copyPrompt'; id: string }
     | {
-          type: 'savePrompt';
-          draft: PromptDraft;
+          type: 'savePrompt'
+          draft: PromptDraft
       }
     | { type: 'deletePrompt'; id: string }
     | { type: 'movePrompt'; id: string; direction: 'up' | 'down' }
-    | { type: 'resetDefaults' };
+    | { type: 'resetDefaults' }
 
 /** 宿主 -> Webview */
 export type HostToWebviewMessage =
     | { type: 'state'; payload: PromptStatePayload }
     | { type: 'notify'; level: 'info' | 'warn' | 'error'; message: string }
-    | { type: 'editPrompt'; payload: { id?: string } };
+    | { type: 'editPrompt'; payload: { id?: string } }
+    /** 轮询次数耗尽仍未检测到 CodeBuddy，Webview 据此弹出带「刷新」按钮的常驻提示 */
+    | { type: 'codebuddyMissing' }
 
 /** 图标键白名单校验，宿主侧收到草稿时复用 */
 export function isPromptIconKey(value: unknown): value is PromptIconKey {
@@ -37,5 +39,5 @@ export function isPromptIconKey(value: unknown): value is PromptIconKey {
         value === 'search' ||
         value === 'file-text' ||
         value === 'terminal'
-    );
+    )
 }

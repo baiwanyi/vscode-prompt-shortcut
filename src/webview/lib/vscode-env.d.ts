@@ -5,9 +5,9 @@
  */
 
 interface VsCodeApi {
-    postMessage(message: unknown): void;
-    getState(): unknown;
-    setState(state: unknown): void;
+    postMessage(message: unknown): void
+    getState(): unknown
+    setState(state: unknown): void
 }
 
-declare function acquireVsCodeApi(): VsCodeApi;
+declare function acquireVsCodeApi(): VsCodeApi

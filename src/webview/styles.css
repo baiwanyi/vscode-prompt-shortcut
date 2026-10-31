@@ -12,12 +12,7 @@
 @import 'tw-animate-css';
 
 @custom-variant dark {
-    &:where(
-        .dark,
-        .dark *,
-        [data-vscode-theme-kind='vscode-dark'],
-        [data-vscode-theme-kind='vscode-dark'] *
-    ) {
+    &:where(.dark, .dark *, [data-vscode-theme-kind='vscode-dark'], [data-vscode-theme-kind='vscode-dark'] *) {
         @slot;
     }
 }
@@ -31,36 +26,18 @@ body {
     --card: var(--vscode-editorWidget-background, oklch(1 0 0));
     --card-foreground: var(--vscode-editorWidget-foreground, oklch(0.145 0 0));
     --popover: var(--vscode-editorWidget-background, oklch(1 0 0));
-    --popover-foreground: var(
-        --vscode-editorWidget-foreground,
-        oklch(0.145 0 0)
-    );
+    --popover-foreground: var(--vscode-editorWidget-foreground, oklch(0.145 0 0));
     --primary: var(--vscode-button-background, oklch(0.52 0.105 223.128));
-    --primary-foreground: var(
-        --vscode-button-foreground,
-        oklch(0.984 0.019 200.873)
-    );
-    --secondary: var(
-        --vscode-button-secondaryBackground,
-        oklch(0.967 0.001 286.375)
-    );
-    --secondary-foreground: var(
-        --vscode-button-secondaryForeground,
-        oklch(0.21 0.006 285.885)
-    );
+    --primary-foreground: var(--vscode-button-foreground, oklch(0.984 0.019 200.873));
+    --secondary: var(--vscode-button-secondaryBackground, oklch(0.967 0.001 286.375));
+    --secondary-foreground: var(--vscode-button-secondaryForeground, oklch(0.21 0.006 285.885));
     --muted: var(--vscode-input-background, oklch(0.97 0 0));
     --muted-foreground: var(--vscode-descriptionForeground, oklch(0.556 0 0));
     --accent: var(--vscode-list-hoverBackground, oklch(0.97 0 0));
     --accent-foreground: var(--vscode-list-hoverForeground, oklch(0.205 0 0));
-    --destructive: var(
-        --vscode-inputValidation-errorBorder,
-        oklch(0.577 0.245 27.325)
-    );
+    --destructive: var(--vscode-inputValidation-errorBorder, oklch(0.577 0.245 27.325));
     /* 相对 shadcn 标准的扩展项：VSCode 的错误文字色，比 --destructive 更适合做前景色 */
-    --destructive-foreground: var(
-        --vscode-errorForeground,
-        oklch(0.577 0.245 27.325)
-    );
+    --destructive-foreground: var(--vscode-errorForeground, oklch(0.577 0.245 27.325));
     --border: var(--vscode-panel-border, oklch(0.922 0 0));
     /* 输入控件边框色：input.border 多数主题未定义，退回 --border，避免与 --muted 背景同色导致边框隐形 */
     --input: var(--vscode-input-border, var(--border));
@@ -94,35 +71,17 @@ body.dark {
     --card: var(--vscode-editorWidget-background, oklch(0.205 0 0));
     --card-foreground: var(--vscode-editorWidget-foreground, oklch(0.985 0 0));
     --popover: var(--vscode-editorWidget-background, oklch(0.205 0 0));
-    --popover-foreground: var(
-        --vscode-editorWidget-foreground,
-        oklch(0.985 0 0)
-    );
+    --popover-foreground: var(--vscode-editorWidget-foreground, oklch(0.985 0 0));
     --primary: var(--vscode-button-background, oklch(0.45 0.085 224.283));
-    --primary-foreground: var(
-        --vscode-button-foreground,
-        oklch(0.984 0.019 200.873)
-    );
-    --secondary: var(
-        --vscode-button-secondaryBackground,
-        oklch(0.274 0.006 286.033)
-    );
-    --secondary-foreground: var(
-        --vscode-button-secondaryForeground,
-        oklch(0.985 0 0)
-    );
+    --primary-foreground: var(--vscode-button-foreground, oklch(0.984 0.019 200.873));
+    --secondary: var(--vscode-button-secondaryBackground, oklch(0.274 0.006 286.033));
+    --secondary-foreground: var(--vscode-button-secondaryForeground, oklch(0.985 0 0));
     --muted: var(--vscode-input-background, oklch(0.269 0 0));
     --muted-foreground: var(--vscode-descriptionForeground, oklch(0.708 0 0));
     --accent: var(--vscode-list-hoverBackground, oklch(0.269 0 0));
     --accent-foreground: var(--vscode-list-hoverForeground, oklch(0.985 0 0));
-    --destructive: var(
-        --vscode-inputValidation-errorBorder,
-        oklch(0.704 0.191 22.216)
-    );
-    --destructive-foreground: var(
-        --vscode-errorForeground,
-        oklch(0.704 0.191 22.216)
-    );
+    --destructive: var(--vscode-inputValidation-errorBorder, oklch(0.704 0.191 22.216));
+    --destructive-foreground: var(--vscode-errorForeground, oklch(0.704 0.191 22.216));
     --border: var(--vscode-panel-border, oklch(1 0 0 / 10%));
     --input: var(--vscode-input-border, var(--border));
     --ring: var(--vscode-focusBorder, oklch(0.556 0 0));
@@ -179,12 +138,7 @@ body.dark {
     --radius-xl: calc(var(--radius) + 4px);
 
     --font-sans: 'Inter Variable', sans-serif;
-    --font-mono: var(
-        --vscode-editor-font-family,
-        ui-monospace,
-        SFMono-Regular,
-        monospace
-    );
+    --font-mono: var(--vscode-editor-font-family, ui-monospace, SFMono-Regular, monospace);
     --font-heading: var(--font-sans);
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
@@ -231,18 +185,12 @@ body {
 }
 
 *::-webkit-scrollbar-thumb {
-    background-color: var(
-        --vscode-scrollbarSlider-background,
-        oklch(0.7 0 0 / 40%)
-    );
+    background-color: var(--vscode-scrollbarSlider-background, oklch(0.7 0 0 / 40%));
     border-radius: 999px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-    background-color: var(
-        --vscode-scrollbarSlider-hoverBackground,
-        oklch(0.6 0 0 / 70%)
-    );
+    background-color: var(--vscode-scrollbarSlider-hoverBackground, oklch(0.6 0 0 / 70%));
 }
 
 *::-webkit-scrollbar-track {
@@ -259,10 +207,7 @@ select:focus-visible {
 
 /* 选中文本与编辑器选区保持一致 */
 ::selection {
-    background-color: var(
-        --vscode-editor-selectionBackground,
-        oklch(0.52 0.105 223.128 / 30%)
-    );
+    background-color: var(--vscode-editor-selectionBackground, oklch(0.52 0.105 223.128 / 30%));
 }
 
 /* shadcn preset 的基础层：统一边框色与 outline 色，指针手势由 --pointer 参数开启 */

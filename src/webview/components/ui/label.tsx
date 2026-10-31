@@ -1,17 +1,25 @@
 /**
- * 表单标签组件。
- * 基于 Radix Label 保证点击标签可聚焦关联控件，提升键盘可达性；
- * 注意：必须通过 htmlFor 与控件 id 对应，否则失去点击聚焦语义。
+ * 表单标签（shadcn registry 官方实现）。
+ * 基于 Radix Label，点击标签会把焦点交给关联控件。
+ * 注意：必须设置 htmlFor 指向控件 id，否则点击不聚焦且屏幕阅读器无法建立关联。
  */
-import * as LabelPrimitive from '@radix-ui/react-label';
-import type { ComponentProps } from 'react';
-import { cn } from '@webview/lib/utils';
+'use client'
 
-export function Label({ className, ...props }: ComponentProps<typeof LabelPrimitive.Root>) {
+import * as React from 'react'
+import { cn } from 'cn'
+import { Label as LabelPrimitive } from 'radix-ui'
+
+function Label({ className, ...props }: React.ComponentProps<typeof LabelPrimitive.Root>) {
     return (
         <LabelPrimitive.Root
-            className={cn('text-xs font-medium text-muted-foreground select-none', className)}
+            data-slot="label"
+            className={cn(
+                'flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50',
+                className,
+            )}
             {...props}
         />
-    );
+    )
 }
+
+export { Label }
