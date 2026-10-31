@@ -1,25 +1,42 @@
 /**
- * Webview 渲染入口。
- * 负责挂载 React 根节点、引入全局样式，并用 TooltipProvider 统一承担全局面板内的悬浮提示；
- * 产物由 Vite 打包成 assets 下的模块脚本，挂在 index.html 的 #root 之后加载。
- * 注意：根节点缺失说明 HTML 与入口对不上，直接抛出；控制台错误由宿主侧渲染兜底页呈现；
- * TooltipProvider 只能挂一次，分散到各组件会导致提示延迟与关闭行为不一致。
+ * Webview 挂载入口：把 VS Code 主题同步到 shadcn 的暗色约定，并挂载 React 根。
+ * 复用约定：挂载时统一包一层 TooltipProvider，页面内的 Tooltip 不必各自重复提供 Provider；
+ * 首屏加载态与面板主体都在 bootstrap 组件内，本文件只负责容器、主题与全局样式。
+ * 注意：主题同步必须跟随 data-vscode-theme-kind 的变化，用户切换主题时面板要即时收敛；
+ * #root 缺失说明 HTML 与入口对不上，直接抛出，便于宿主兜底页给出可见原因。
  */
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { TooltipProvider } from '@components/ui/tooltip'
-import { App } from '@webview/App'
+import { Bootstrap } from '@webview/bootstrap'
 import '@webview/styles.css'
 
-const container = document.getElementById('root')
-if (!container) {
-    throw new Error('找不到 #root 容器，Webview HTML 可能未正确生成')
+/** 判定为深色的主题标识，high-contrast 同样使用深色底色 */
+const DARK_THEME_KINDS = ['vscode-dark', 'vscode-high-contrast']
+
+/** 依据 VS Code 主题类型在根元素挂载或移除 .dark 类，供 Tailwind 的 dark 变体使用 */
+function syncDarkClass(): void {
+    const themeKind = document.body.dataset.vscodeThemeKind ?? ''
+    document.documentElement.classList.toggle('dark', DARK_THEME_KINDS.includes(themeKind))
 }
 
-createRoot(container).render(
-    <StrictMode>
-        <TooltipProvider delayDuration={400}>
-            <App />
-        </TooltipProvider>
-    </StrictMode>,
-)
+function mount(): void {
+    const container = document.getElementById('root')
+    if (!container) {
+        throw new Error('找不到 #root 容器，Webview HTML 可能未正确生成')
+    }
+    syncDarkClass()
+    new MutationObserver(syncDarkClass).observe(document.body, {
+        attributes: true,
+        attributeFilter: ['data-vscode-theme-kind'],
+    })
+    createRoot(container).render(
+        <StrictMode>
+            <TooltipProvider delayDuration={400}>
+                <Bootstrap />
+            </TooltipProvider>
+        </StrictMode>,
+    )
+}
+
+mount()

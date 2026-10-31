@@ -34,7 +34,7 @@ webian.prompt/
 │   │       └── PromptSidebarProvider.ts  # WebviewViewProvider，含消息路由
 │   ├── webview/                   # 侧边栏界面（浏览器侧）
 │   │   ├── index.html             # Vite HTML 入口（宿主据此注入 CSP）
-│   │   ├── main.tsx / App.tsx     # 挂载入口与面板根组件（首屏加载态用 Spinner）
+│   │   ├── main.tsx / bootstrap.tsx  # 挂载入口与面板引导组件（首屏加载态用 Spinner）
 │   │   ├── components/            # PromptCard、PromptEditorDialog、ui/*（card / dropdown-menu / spinner / tooltip 等）
 │   │   ├── hooks/useHostMessages.ts
 │   │   ├── lib/{vscode,icons}.ts  # 类名合并直接用 cn 包，不再维护 utils
@@ -133,7 +133,7 @@ pnpm run package    # 产出 releases/webian-prompt-0.1.0.vsix
 | 配置 | 默认值 | 说明 |
 | --- | --- | --- |
 | `webianPrompt.codebuddy.sendCommand` | `tencentcloud.codingcopilot.sendToChat` | 发送命令 ID，CodeBuddy 升级改名时可覆盖 |
-| `webianPrompt.codebuddy.mode` | `craft` | 对话模式：craft / ask / plan / debug |
+| `webianPrompt.codebuddy.mode` | `craft` | 对话模式：craft / ask / plan |
 | `webianPrompt.codebuddy.autoSend` | `true` | 关闭后只写剪贴板不发送 |
 | `webianPrompt.codebuddy.fallbackToClipboard` | `true` | 未检测到 CodeBuddy 时是否退化为剪贴板 |
 

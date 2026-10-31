@@ -1,17 +1,19 @@
 /**
  * 提示词卡片：面板中的主要操作单元。
+ * 采用 Card 的完整组合（Header / Title / Description / Action），字号与配色由组件与 size 变体承担，调用方只补布局类。
  * 整卡即发送入口——点击卡片任意位置把提示词送进 CodeBuddy 对话框并自动发送；
- * 编辑、复制、排序、删除统一收进右侧「更多」下拉菜单，卡片不再需要 hover 操作行。
+ * 编辑、复制、排序、删除统一收进右侧「更多」下拉菜单，菜单项按 Group 分组以符合组件契约。
  * 注意：下拉菜单的触发按钮与 Content 都必须阻止冒泡，否则点开菜单或选择菜单项会连带触发一次发送；
  * 卡片悬浮提示走 Tooltip 组件而非原生 title，原生 title 在 Webview 中延迟长且会被侧边栏裁切。
  */
 import { ArrowDown, ArrowUp, Copy, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { Badge } from '@components/ui/badge'
 import { Button } from '@components/ui/button'
-import { Card, CardContent } from '@components/ui/card'
+import { Card, CardAction, CardDescription, CardHeader, CardTitle } from '@components/ui/card'
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuGroup,
     DropdownMenuItem,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
@@ -48,67 +50,74 @@ export function PromptCard({
         <Tooltip>
             <TooltipTrigger asChild>
                 <Card
-                    className="cursor-pointer transition-colors hover:border-ring/70"
+                    size="sm"
+                    className="cursor-pointer transition-colors hover:ring-ring/40"
                     onClick={() => onRun(prompt.id)}
                 >
-                    <CardContent className="flex items-start gap-2">
-                        <Icon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-                        <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5">
-                                <span className="truncate text-[13px] font-medium leading-5">{prompt.label}</span>
-                                {prompt.builtin ? <Badge variant="outline">内置</Badge> : null}
-                            </div>
-                            {prompt.description ? (
-                                <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-muted-foreground">
-                                    {prompt.description}
-                                </p>
-                            ) : null}
+                    <CardHeader>
+                        <div className="flex min-w-0 items-center gap-1.5">
+                            <Icon className="size-3.5 shrink-0 text-muted-foreground" />
+                            <CardTitle className="truncate">{prompt.label}</CardTitle>
+                            {prompt.builtin ? <Badge variant="outline">内置</Badge> : null}
                         </div>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="icon-xs"
-                                    className="shrink-0 text-muted-foreground"
-                                    aria-label={`「${prompt.label}」的更多操作`}
-                                    onClick={(event) => event.stopPropagation()}
-                                >
-                                    <MoreHorizontal className="size-3.5" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
-                                <DropdownMenuItem onSelect={() => onEdit(prompt.id)}>
-                                    <Pencil className="size-3" />
-                                    编辑
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => onCopy(prompt.id)}>
-                                    <Copy className="size-3" />
-                                    复制提示词
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem disabled={!canMoveUp} onSelect={() => onMove(prompt.id, 'up')}>
-                                    <ArrowUp className="size-3" />
-                                    上移
-                                </DropdownMenuItem>
-                                <DropdownMenuItem disabled={!canMoveDown} onSelect={() => onMove(prompt.id, 'down')}>
-                                    <ArrowDown className="size-3" />
-                                    下移
-                                </DropdownMenuItem>
-                                {!prompt.builtin ? (
-                                    <>
+                        <CardAction>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon-xs"
+                                        className="text-muted-foreground"
+                                        aria-label={`「${prompt.label}」的更多操作`}
+                                        onClick={(event) => event.stopPropagation()}
+                                    >
+                                        <MoreHorizontal />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
+                                    <DropdownMenuGroup>
+                                        <DropdownMenuItem onSelect={() => onEdit(prompt.id)}>
+                                            <Pencil />
+                                            编辑
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => onCopy(prompt.id)}>
+                                            <Copy />
+                                            复制提示词
+                                        </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem
-                                            className="text-destructive-foreground"
-                                            onSelect={() => onDelete(prompt.id)}
+                                            disabled={!canMoveUp}
+                                            onSelect={() => onMove(prompt.id, 'up')}
                                         >
-                                            <Trash2 className="size-3" />
-                                            删除
+                                            <ArrowUp />
+                                            上移
                                         </DropdownMenuItem>
-                                    </>
-                                ) : null}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </CardContent>
+                                        <DropdownMenuItem
+                                            disabled={!canMoveDown}
+                                            onSelect={() => onMove(prompt.id, 'down')}
+                                        >
+                                            <ArrowDown />
+                                            下移
+                                        </DropdownMenuItem>
+                                        {!prompt.builtin ? (
+                                            <>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem
+                                                    className="text-destructive-foreground"
+                                                    onSelect={() => onDelete(prompt.id)}
+                                                >
+                                                    <Trash2 />
+                                                    删除
+                                                </DropdownMenuItem>
+                                            </>
+                                        ) : null}
+                                    </DropdownMenuGroup>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </CardAction>
+                        {prompt.description ? (
+                            <CardDescription className="line-clamp-2">{prompt.description}</CardDescription>
+                        ) : null}
+                    </CardHeader>
                 </Card>
             </TooltipTrigger>
             <TooltipContent side="bottom">点击发送「{prompt.label}」到 CodeBuddy</TooltipContent>

@@ -3,8 +3,6 @@
  * 基于 Radix Label，点击标签会把焦点交给关联控件。
  * 注意：必须设置 htmlFor 指向控件 id，否则点击不聚焦且屏幕阅读器无法建立关联。
  */
-'use client'
-
 import * as React from 'react'
 import { cn } from 'cn'
 import { Label as LabelPrimitive } from 'radix-ui'

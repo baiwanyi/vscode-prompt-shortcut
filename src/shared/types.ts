@@ -6,7 +6,7 @@
  */
 
 /** CodeBuddy 对话模式，取值与扩展内置的 BASIC_CHAT_TYPES 对齐 */
-export type ChatMode = 'craft' | 'ask' | 'plan' | 'debug'
+export type ChatMode = 'craft' | 'ask' | 'plan'
 
 /** 提示词卡片可用的图标键，Webview 侧映射到 lucide 图标组件 */
 export type PromptIconKey =
@@ -23,7 +23,12 @@ export const PROMPT_ICON_KEYS: readonly PromptIconKey[] = [
     'terminal',
 ]
 
-export const CHAT_MODES: readonly ChatMode[] = ['craft', 'ask', 'plan', 'debug']
+export const CHAT_MODES: readonly ChatMode[] = ['craft', 'ask', 'plan']
+
+/** 校验对话模式取值：宿主读档与 Webview 收窄共用同一份白名单 */
+export function isChatMode(value: unknown): value is ChatMode {
+    return typeof value === 'string' && CHAT_MODES.some((mode) => mode === value)
+}
 
 /** 一条提示词模板 */
 export interface PromptTemplate {

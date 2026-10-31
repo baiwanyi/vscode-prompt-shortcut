@@ -1,11 +1,12 @@
 /**
  * 提示词新增/编辑对话框。
+ * 表单用 Field / FieldGroup 组织，校验态经 data-invalid 与 aria-invalid 传给控件，错误文案交给 FieldError；
+ * 图标与对话模式都是互斥单选，统一用 ToggleGroup 承载，避免原生 select 在窄面板中展开后被裁切。
  * 表单状态完全受控于本组件，提交时只回传 PromptDraft，由宿主完成校验与持久化；
  * 内置模板允许修改文案，但名称之外的结构（id / builtin）由原始数据保留。
  * 注意：draft 变化时必须重置表单，否则会出现「切换编辑对象后仍显示上一条内容」的问题。
  */
-import { cn } from 'cn'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@components/ui/button'
 import {
     Dialog,
@@ -15,19 +16,27 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@components/ui/dialog'
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldTitle } from '@components/ui/field'
 import { Input } from '@components/ui/input'
-import { Label } from '@components/ui/label'
 import { Textarea } from '@components/ui/textarea'
+import { ToggleGroup, ToggleGroupItem } from '@components/ui/toggle-group'
+import { isPromptIconKey } from '@shared/messages'
 import type { ChatMode, PromptDraft, PromptIconKey } from '@shared/types'
-import { CHAT_MODES, PROMPT_ICON_KEYS } from '@shared/types'
+import { CHAT_MODES, isChatMode, PROMPT_ICON_KEYS } from '@shared/types'
 import { PROMPT_ICON_LABELS, PROMPT_ICON_MAP } from '@webview/lib/icons'
 import type { JSX } from 'react'
 
+/** 选项按钮上的短名，完整语义放在 ToggleGroup 下方的 FieldDescription 里 */
 const MODE_LABELS: Record<ChatMode, string> = {
-    craft: 'Craft（直接改代码）',
-    ask: 'Ask（只问答不改动）',
-    plan: 'Plan（先出方案）',
-    debug: 'Debug（定位问题）',
+    craft: 'Craft',
+    ask: 'Ask',
+    plan: 'Plan',
+}
+
+const MODE_DESCRIPTIONS: Record<ChatMode, string> = {
+    craft: 'Craft：直接分析并修改代码',
+    ask: 'Ask：只回答问题，不改动文件',
+    plan: 'Plan：先给出方案，确认后再动手',
 }
 
 const EMPTY_DRAFT: PromptDraft = {
@@ -58,16 +67,8 @@ export function PromptEditorDialog({ open, draft, onOpenChange, onSubmit }: Prom
         setIsTouched(false)
     }
 
-    const errors = useMemo(() => {
-        const result: string[] = []
-        if (!form.label.trim()) {
-            result.push('名称不能为空')
-        }
-        if (!form.prompt.trim()) {
-            result.push('提示词正文不能为空')
-        }
-        return result
-    }, [form.label, form.prompt])
+    const isLabelInvalid = isTouched && !form.label.trim()
+    const isPromptInvalid = isTouched && !form.prompt.trim()
 
     const update = <K extends keyof PromptDraft>(key: K, value: PromptDraft[K]): void => {
         setForm((prev) => ({ ...prev, [key]: value }))
@@ -75,7 +76,7 @@ export function PromptEditorDialog({ open, draft, onOpenChange, onSubmit }: Prom
 
     const handleSubmit = (): void => {
         setIsTouched(true)
-        if (errors.length > 0) {
+        if (!form.label.trim() || !form.prompt.trim()) {
             return
         }
         onSubmit({
@@ -96,92 +97,104 @@ export function PromptEditorDialog({ open, draft, onOpenChange, onSubmit }: Prom
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
-                    <div className="space-y-1">
-                        <Label htmlFor="prompt-label">名称</Label>
-                        <Input
-                            id="prompt-label"
-                            value={form.label}
-                            maxLength={40}
-                            placeholder="例如：生成单元测试"
-                            onChange={(event) => update('label', event.target.value)}
-                        />
-                    </div>
+                <div className="flex-1 overflow-y-auto px-4 py-3">
+                    <FieldGroup className="gap-3">
+                        <Field data-invalid={isLabelInvalid}>
+                            <FieldLabel htmlFor="prompt-label">名称</FieldLabel>
+                            <Input
+                                id="prompt-label"
+                                value={form.label}
+                                maxLength={40}
+                                placeholder="例如：生成单元测试"
+                                aria-invalid={isLabelInvalid}
+                                onChange={(event) => update('label', event.target.value)}
+                            />
+                            <FieldError>{isLabelInvalid ? '名称不能为空' : null}</FieldError>
+                        </Field>
 
-                    <div className="space-y-1">
-                        <Label htmlFor="prompt-description">说明（可选）</Label>
-                        <Input
-                            id="prompt-description"
-                            value={form.description}
-                            maxLength={120}
-                            placeholder="一句话描述用途，显示在按钮下方"
-                            onChange={(event) => update('description', event.target.value)}
-                        />
-                    </div>
+                        <Field>
+                            <FieldLabel htmlFor="prompt-description">说明（可选）</FieldLabel>
+                            <Input
+                                id="prompt-description"
+                                value={form.description}
+                                maxLength={120}
+                                placeholder="一句话描述用途，显示在按钮下方"
+                                onChange={(event) => update('description', event.target.value)}
+                            />
+                        </Field>
 
-                    <div className="space-y-1">
-                        <Label>图标</Label>
-                        <div className="flex flex-wrap gap-1">
-                            {PROMPT_ICON_KEYS.map((key: PromptIconKey) => {
-                                const Icon = PROMPT_ICON_MAP[key]
-                                const isActive = form.icon === key
-                                return (
-                                    <button
-                                        key={key}
-                                        type="button"
-                                        title={PROMPT_ICON_LABELS[key]}
-                                        aria-label={PROMPT_ICON_LABELS[key]}
-                                        aria-pressed={isActive}
-                                        className={cn(
-                                            'flex size-6 items-center justify-center rounded border transition-colors',
-                                            isActive
-                                                ? 'border-ring bg-primary/20 text-foreground'
-                                                : 'border-border text-muted-foreground hover:bg-accent',
-                                        )}
-                                        onClick={() => update('icon', key)}
-                                    >
-                                        <Icon className="size-3.5" />
-                                    </button>
-                                )
-                            })}
-                        </div>
-                    </div>
+                        <Field>
+                            <FieldTitle>图标</FieldTitle>
+                            <ToggleGroup
+                                type="single"
+                                variant="outline"
+                                size="sm"
+                                aria-label="图标"
+                                className="flex-wrap"
+                                value={form.icon}
+                                onValueChange={(value) => {
+                                    if (isPromptIconKey(value)) {
+                                        update('icon', value)
+                                    }
+                                }}
+                            >
+                                {PROMPT_ICON_KEYS.map((key: PromptIconKey) => {
+                                    const Icon = PROMPT_ICON_MAP[key]
+                                    return (
+                                        <ToggleGroupItem
+                                            key={key}
+                                            value={key}
+                                            title={PROMPT_ICON_LABELS[key]}
+                                            aria-label={PROMPT_ICON_LABELS[key]}
+                                        >
+                                            <Icon />
+                                        </ToggleGroupItem>
+                                    )
+                                })}
+                            </ToggleGroup>
+                        </Field>
 
-                    <div className="space-y-1">
-                        <Label htmlFor="prompt-mode">对话模式</Label>
-                        <select
-                            id="prompt-mode"
-                            value={form.mode}
-                            className="h-7 w-full rounded-md border border-input bg-muted px-1.5 text-[13px] text-foreground"
-                            onChange={(event) => update('mode', event.target.value as ChatMode)}
-                        >
-                            {CHAT_MODES.map((mode) => (
-                                <option key={mode} value={mode}>
-                                    {MODE_LABELS[mode]}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                        <Field>
+                            <FieldTitle>对话模式</FieldTitle>
+                            <ToggleGroup
+                                type="single"
+                                variant="outline"
+                                size="sm"
+                                aria-label="对话模式"
+                                value={form.mode}
+                                onValueChange={(value) => {
+                                    if (isChatMode(value)) {
+                                        update('mode', value)
+                                    }
+                                }}
+                            >
+                                {CHAT_MODES.map((mode) => (
+                                    <ToggleGroupItem key={mode} value={mode}>
+                                        {MODE_LABELS[mode]}
+                                    </ToggleGroupItem>
+                                ))}
+                            </ToggleGroup>
+                            <FieldDescription>{MODE_DESCRIPTIONS[form.mode]}</FieldDescription>
+                        </Field>
 
-                    <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                            <Label htmlFor="prompt-body">提示词正文</Label>
-                            <span className="text-[10px] text-muted-foreground">{form.prompt.length} 字符</span>
-                        </div>
-                        <Textarea
-                            id="prompt-body"
-                            value={form.prompt}
-                            rows={9}
-                            maxLength={8000}
-                            className="font-mono text-xs"
-                            placeholder={'例如：\n请按以下顺序推进本次任务……\n不要修改无关文件。'}
-                            onChange={(event) => update('prompt', event.target.value)}
-                        />
-                    </div>
-
-                    {isTouched && errors.length > 0 ? (
-                        <p className="text-[11px] text-destructive-foreground">{errors.join('；')}</p>
-                    ) : null}
+                        <Field data-invalid={isPromptInvalid}>
+                            <div className="flex items-center justify-between">
+                                <FieldLabel htmlFor="prompt-body">提示词正文</FieldLabel>
+                                <span className="text-xs text-muted-foreground">{form.prompt.length} 字符</span>
+                            </div>
+                            <Textarea
+                                id="prompt-body"
+                                value={form.prompt}
+                                rows={9}
+                                maxLength={8000}
+                                className="font-mono text-xs"
+                                aria-invalid={isPromptInvalid}
+                                placeholder={'例如：\n请按以下顺序推进本次任务……\n不要修改无关文件。'}
+                                onChange={(event) => update('prompt', event.target.value)}
+                            />
+                            <FieldError>{isPromptInvalid ? '提示词正文不能为空' : null}</FieldError>
+                        </Field>
+                    </FieldGroup>
                 </div>
 
                 <DialogFooter>

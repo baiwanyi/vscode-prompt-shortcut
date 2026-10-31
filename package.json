@@ -176,8 +176,7 @@
                     "enum": [
                         "craft",
                         "ask",
-                        "plan",
-                        "debug"
+                        "plan"
                     ],
                     "default": "craft",
                     "markdownDescription": "发送提示词时使用的 CodeBuddy 对话模式。"

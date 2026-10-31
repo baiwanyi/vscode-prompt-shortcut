@@ -5,19 +5,15 @@
  * 注意：所有写操作返回最新列表并立即落盘，调用方不要缓存旧引用；内置模板只允许改文案，不允许删除。
  */
 import { BUILTIN_PROMPT_IDS, createBuiltinPrompts } from './defaults'
-import type { ChatMode, PromptDraft, PromptTemplate } from '../../shared/types'
+import type { PromptDraft, PromptTemplate } from '../../shared/types'
 import type * as vscode from 'vscode'
 import { isPromptIconKey } from '../../shared/messages'
-import { CHAT_MODES } from '../../shared/types'
+import { isChatMode } from '../../shared/types'
 
 const STORAGE_KEY = 'webianPrompt.templates.v1'
 const MAX_LABEL_LENGTH = 40
 const MAX_DESCRIPTION_LENGTH = 120
 const MAX_PROMPT_LENGTH = 8000
-
-function isChatMode(value: unknown): value is ChatMode {
-    return typeof value === 'string' && CHAT_MODES.some((mode) => mode === value)
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null
