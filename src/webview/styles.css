@@ -210,20 +210,18 @@ body {
     background-color: transparent;
 }
 
-button:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible {
+/* 焦点反馈统一交给组件自带的 focus-visible 环（border 变色 + ring-3）；本规则只给未经组件包装的原生控件兜底。
+   排除项缺一不可：Button / Input / Textarea / Toggle 等 shadcn 组件都带 data-slot 与自己的 ring，
+   sonner 的 toast 按钮带 data-close-button / data-button 且自带 box-shadow 环；
+   若这里再无差别地画 outline，同一个焦点位置就会同时出现 outline 与组件环两圈，看起来像边框重叠 */
+:is(button, input, textarea, select):not([data-slot], [data-close-button], [data-button]):focus-visible {
     outline: 1px solid var(--ring);
     outline-offset: 1px;
 }
 
-/* InputGroup 的焦点表达统一收敛到 border 变色：内部控件不画 outline，容器也不叠加 3px 外环，
-   否则边框与光环叠在一起会形成双层边（组件自带的 focus 环特异性为 (0,3,0)，只能靠 important 覆盖） */
-[data-slot='input-group'] :is(input, textarea):focus-visible {
-    outline: none;
-}
-
+/* InputGroup 的焦点表达收敛到容器 border 变色：内部控件已被上面的 :not([data-slot]) 排除（其 data-slot 为
+   input-group-control），容器再压掉 3px 外环，避免环溢出到头部覆盖层的标题行上（组件自带的环特异性为
+   (0,3,0)，只能靠 important 覆盖） */
 [data-slot='input-group']:focus-within {
     --tw-ring-shadow: 0 0 #0000 !important;
 }

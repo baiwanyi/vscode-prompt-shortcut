@@ -1,19 +1,24 @@
 /**
  * CodeBuddy 扩展的桥接层，负责把提示词送进 CodeBuddy 对话框。
  * 主通道是 `tencentcloud.codingcopilot.chat.sendMessage`：它把 action 交给聊天页但不带
- * `newConversation` 参数，消息发往当前会话，因此不会每次新开一个会话标签；对话模式经 `options.mode` 传入。
- * 该命令依赖活动栏聊天视图的 rpc，视图尚未加载时会抛 `Chat webview is not ready`，故失败后有限重试，
- * 仍失败则回退 `tencentcloud.codingcopilot.sendToChat`（其内部写死 `options.newChat` 与
- * `newConversation: true`，必然新建会话），最后才降级为写剪贴板。
- * 两个命令都未在 CodeBuddy 的 contributes.commands 中声明，扩展未激活时并不存在，
+ * `newConversation` 参数，因此不会新开标签；决定是否复用会话的是 `options.conversationId`——
+ * 该值由 `getContext` 读出后显式传入，缺省时聊天页在视图未加载的情况下会自己新建会话。
+ * 命令依赖活动栏聊天视图的 rpc，视图尚未加载时会抛 `Chat webview is not ready`，故失败后
+ * 重新聚焦视图并有限重试；仍失败才回退 `tencentcloud.codingcopilot.sendToChat`
+ * （其内部写死 `options.newChat` 与 `newConversation: true`，必然新建会话），最后降级为写剪贴板。
+ * 三个命令都未在 CodeBuddy 的 contributes.commands 中声明，扩展未激活时并不存在，
  * 因此执行前必须先 focus 聊天视图触发激活，再轮询等待命令注册完成。
  * 注意：命令 ID 与参数签名属于对方扩展的内部实现，版本升级可能变动，必须允许通过配置覆盖。
  */
 import * as vscode from 'vscode'
 import type { ChatMode, CodeBuddyStatus, SendOutcome } from '../../shared/types'
+import { isRecord } from '../../shared/guards'
 
 /** CodeBuddy 聊天视图 ID，focus 该视图可触发其扩展激活 */
 const CHAT_VIEW_ID = 'coding-copilot.webviews.chat'
+
+/** 读取当前会话上下文的命令，返回值里带 conversationId（无会话时为空串） */
+const CONTEXT_COMMAND = 'tencentcloud.codingcopilot.getContext'
 
 /** 激活到命令可用的等待上限：实测 2-3s，慢机器更久，故给到 10s 再考虑降级 */
 const ACTIVATION_TIMEOUT_MS = 10000
@@ -22,6 +27,14 @@ const ACTIVATION_POLL_INTERVAL_MS = 250
 /** 复用当前会话的重试参数：聊天视图刚激活时其 rpc 通道可能尚未就绪 */
 const CURRENT_CHAT_ATTEMPTS = 3
 const CURRENT_CHAT_RETRY_INTERVAL_MS = 500
+
+/** 排障日志通道：只在复用失败、回退等异常路径写入，正常发送不留噪音 */
+let logChannel: vscode.OutputChannel | undefined
+
+function report(message: string): void {
+    logChannel ??= vscode.window.createOutputChannel('微边提示词')
+    logChannel.appendLine(`[CodeBuddy] ${message}`)
+}
 
 export interface BridgeConfig {
     /** 复用当前会话的发送命令（chat.sendMessage） */
@@ -134,15 +147,19 @@ export class CodeBuddyBridge {
         const failures: string[] = []
 
         if (config.reuseConversation) {
-            const reuse = await this.sendToCurrentChat(config.sendCommand, prompt, mode)
+            const conversationId = await this.readConversationId()
+            report(conversationId ? `复用会话：${conversationId}` : '未读到当前会话 ID，交由聊天页决定落点。')
+            const reuse = await this.sendToCurrentChat(config.sendCommand, prompt, mode, conversationId)
             if (reuse.isOk) {
                 return { outcome: 'sent', detail: '已发送到 CodeBuddy 当前对话。' }
             }
+            report(`复用失败：${reuse.detail}`)
             failures.push(reuse.detail)
         }
 
         const newChat = await this.sendToNewChat(config.newChatCommand, prompt, mode)
         if (newChat.isOk) {
+            report('已回退到新建会话发送。')
             return {
                 outcome: 'sent',
                 detail: config.reuseConversation
@@ -167,26 +184,61 @@ export class CodeBuddyBridge {
     }
 
     /**
-     * 在当前会话发送：命令本身就是「不新建会话」的语义，故不传任何会话类参数。
-     * rpc 通道未就绪时会立刻抛错，这里按间隔重试；全部失败才判定为不可用。
+     * 在当前会话发送。
+     * conversationId 是复用的关键：聊天页拿不到目标会话时会在视图未加载的情况下自行新建，
+     * 只有显式传入才会把消息送回原会话；读不到 ID 时退化为「不指定会话」，由聊天页决定落点。
+     * rpc 通道未就绪会立刻抛错，此时先重新聚焦聊天视图再重试；全部失败才判定为不可用。
      */
-    private async sendToCurrentChat(command: string, prompt: string, mode: ChatMode): Promise<CommandAttempt> {
+    private async sendToCurrentChat(
+        command: string,
+        prompt: string,
+        mode: ChatMode,
+        conversationId: string,
+    ): Promise<CommandAttempt> {
         if (!(await this.hasCommand(command))) {
             return { isOk: false, detail: `未找到复用当前对话的命令「${command}」` }
         }
+        const options = conversationId ? { mode, conversationId } : { mode }
         let lastError = ''
         for (let index = 0; index < CURRENT_CHAT_ATTEMPTS; index += 1) {
             try {
-                await vscode.commands.executeCommand(command, { message: prompt, options: { mode } })
+                const result: unknown = await vscode.commands.executeCommand(command, { message: prompt, options })
+                // 会话失效时命令不抛错，而是返回 { error }，必须显式识别才能进入回退链路
+                if (isRecord(result) && typeof result.error === 'string') {
+                    return { isOk: false, detail: `复用当前对话被拒绝：${result.error}` }
+                }
                 return { isOk: true, detail: '' }
             } catch (error) {
                 lastError = error instanceof Error ? error.message : String(error)
+                await this.focusChatView()
                 if (index < CURRENT_CHAT_ATTEMPTS - 1) {
                     await delay(CURRENT_CHAT_RETRY_INTERVAL_MS)
                 }
             }
         }
         return { isOk: false, detail: `复用当前对话失败：${lastError}` }
+    }
+
+    /**
+     * 读取 CodeBuddy 当前会话 ID。
+     * `getContext` 是对方暴露的只读通道（不传 ensureConversation 时不会新建会话），
+     * 读不到或命令缺失时返回空串，由调用方退化为「不指定会话」。
+     */
+    private async readConversationId(): Promise<string> {
+        if (!(await this.hasCommand(CONTEXT_COMMAND))) {
+            report(`未找到读取上下文的命令「${CONTEXT_COMMAND}」`)
+            return ''
+        }
+        try {
+            const raw: unknown = await vscode.commands.executeCommand(CONTEXT_COMMAND)
+            if (!isRecord(raw)) {
+                return ''
+            }
+            return typeof raw.conversationId === 'string' ? raw.conversationId : ''
+        } catch (error) {
+            report(`读取当前会话失败：${error instanceof Error ? error.message : String(error)}`)
+            return ''
+        }
     }
 
     /** 新建会话发送：该命令固定 `newConversation: true`，参数为 `{ prompt, mode }` */

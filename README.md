@@ -40,8 +40,8 @@ webian.prompt/
 │   ├── webview/                   # 侧边栏界面（浏览器侧）
 │   │   ├── index.html             # Vite HTML 入口（宿主据此注入 CSP）
 │   │   ├── main.tsx / bootstrap.tsx  # 挂载入口与面板引导组件（首屏加载态用 Spinner）
-│   │   ├── components/            # PromptItem、PromptEditorDialog、PanelHeader、PromptList、ui/*
-│   │   ├── hooks/                 # useHostMessages / usePromptState / usePromptEditor
+│   │   ├── components/            # PromptItem、PromptItemMenu、PromptEditorDialog、PanelHeader、PromptList、ui/*
+│   │   ├── hooks/                 # useDelayedAction / useHostMessages / usePromptState / usePromptEditor
 │   │   ├── lib/{vscode,icons}.ts  # 类名合并直接用 cn 包，不再维护 utils
 │   │   └── styles.css             # Tailwind 4 主题令牌映射
 │   └── shared/                    # 两侧共享的类型、协议与常量
@@ -63,26 +63,30 @@ webian.prompt/
 
 ### 主通道：`tencentcloud.codingcopilot.chat.sendMessage`
 
-CodeBuddy 4.12 内部注册了 `chat.sendMessage` 命令（未在 `contributes.commands` 中公开）。它把消息交给聊天页但**不带** `newConversation` 参数，因此发往当前会话，不会每次新开一个会话标签：
+CodeBuddy 4.12 内部注册了 `chat.sendMessage` 命令（未在 `contributes.commands` 中公开）。它把消息交给聊天页且**不带** `newConversation` 参数，真正的会话落点由 `options.conversationId` 决定：
 
 ```js
 handler({ message, options }) {
+    if (options?.conversationId) await conversationService.setCurrentConversation(options.conversationId);
     const action = { prompt: message, targetConversationId: options?.conversationId };
     if (options?.mode) await chatService.switchChatMode(options.mode);
     chatService.activatePage({ path: '/', action });   // 没有 params.newConversation
 }
 ```
 
-本扩展的调用形态（对话模式经 `options.mode` 传入）：
+**`conversationId` 必须显式传入**：聊天视图未加载时 webview 内的「当前会话」为空，只靠 action 不带会话参数会让聊天页自行新建一个会话——这正是早期版本「点了还是新开会话」的原因。会话 ID 由 `tencentcloud.codingcopilot.getContext` 读出（不传 `ensureConversation` 时该命令只读不建）：
 
 ```ts
+const context = await vscode.commands.executeCommand('tencentcloud.codingcopilot.getContext');
+const conversationId = typeof context?.conversationId === 'string' ? context.conversationId : '';
+
 await vscode.commands.executeCommand('tencentcloud.codingcopilot.chat.sendMessage', {
     message: prompt,
-    options: { mode },
+    options: conversationId ? { mode, conversationId } : { mode },
 });
 ```
 
-该命令依赖活动栏聊天视图的 rpc，视图尚未加载时会抛 `Chat webview is not ready`；桥接层按 500ms 间隔重试至多 3 次，仍失败才进入回退链路。
+读不到会话 ID 时退化为「不指定会话」；命令依赖活动栏聊天视图的 rpc，视图尚未加载会抛 `Chat webview is not ready`，桥接层重新聚焦视图后按 500ms 间隔重试至多 3 次，仍失败才进入回退链路。是否真的走上复用路径会写入输出面板「微边提示词」。
 
 ### 回退通道：`tencentcloud.codingcopilot.sendToChat`
 
@@ -94,7 +98,7 @@ await vscode.commands.executeCommand('tencentcloud.codingcopilot.sendToChat', { 
 
 ### 激活顺序（关键）
 
-两个命令都由 CodeBuddy 的依赖注入容器在**扩展激活后**注册，未激活时 `executeCommand` 会抛出 command not found。所以发送前固定执行：
+三个命令（`getContext`、`chat.sendMessage`、`sendToChat`）都由 CodeBuddy 的依赖注入容器在**扩展激活后**注册，未激活时 `executeCommand` 会抛出 command not found。所以发送前固定执行：
 
 1. `executeCommand('coding-copilot.webviews.chat.focus')` —— 打开聊天视图并触发 CodeBuddy 激活；
 2. 以 250ms 间隔轮询 `getCommands(true)`，直到任一发送命令出现或超时 10s。

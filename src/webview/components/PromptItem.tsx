@@ -1,43 +1,39 @@
 /**
  * 提示词条目（PromptItem）：面板列表中的最小可操作单元。
- * 采用 Item 的组合结构（Media / Content / Actions），整行即发送入口，点击任意位置把提示词送进 CodeBuddy。
- * 编辑、复制、排序、删除收进右侧「更多」下拉菜单，菜单项按 Group 分组以符合组件契约。
- * 注意：下拉菜单的触发按钮与 Content 都必须阻止冒泡，否则点开菜单或选择菜单项会连带触发一次发送；
- * 条目不再挂 Tooltip —— 行内的名称与箭头已足够表达「点击即发送」，原生 title 在 Webview 中延迟长且会被裁切。
+ * 采用 Item 的组合结构（Media / Content / Actions），整行即发送入口；
+ * 延迟与撤销交给 useDelayedAction，操作菜单交给 PromptItemMenu，本组件只负责布局与状态呈现。
+ * 注意：发送会新建 CodeBuddy 会话且不可撤销，故点击后留出一段可撤销窗口，
+ * 窗口内再次点击或展开「更多」菜单都会撤销；位置能力由列表通过 canMove 注入，条目自身不保存序号。
  */
-import { ArrowDown, ArrowUp, ChevronRight, Copy, MoreHorizontal, Pencil, RotateCcw, Trash2 } from 'lucide-react'
+import { cn } from 'cn'
+import { ChevronRight, Timer } from 'lucide-react'
+import { PromptItemMenu } from '@components/PromptItemMenu'
 import { Badge } from '@components/ui/badge'
-import { Button } from '@components/ui/button'
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuGroup,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@components/ui/dropdown-menu'
 import { Item, ItemActions, ItemContent, ItemMedia, ItemTitle } from '@components/ui/item'
-import type { PromptTemplate } from '@shared/types'
+import type { MoveDirection, PromptTemplate } from '@shared/types'
+import { useDelayedAction } from '@webview/hooks/useDelayedAction'
 import { PROMPT_ICON_MAP } from '@webview/lib/icons'
 import type { JSX } from 'react'
 
+/** 点击到发送之间的等待窗口：覆盖误触与双击间隔，给用户留出撤销机会 */
+const RUN_DELAY_MS = 500
+
 interface PromptItemProps {
     prompt: PromptTemplate
-    canMoveUp: boolean
-    canMoveDown: boolean
+    /** 能否朝指定方向移动；位置规则由列表持有，条目只负责询问 */
+    canMove: (direction: MoveDirection) => boolean
     onRun: (id: string) => void
     onCopy: (id: string) => void
     onEdit: (id: string) => void
     onDelete: (id: string) => void
     /** 仅内置模板可用：把该条恢复为出厂内容 */
     onRestore: (id: string) => void
-    onMove: (id: string, direction: 'up' | 'down') => void
+    onMove: (id: string, direction: MoveDirection) => void
 }
 
 export function PromptItem({
     prompt,
-    canMoveUp,
-    canMoveDown,
+    canMove,
     onRun,
     onCopy,
     onEdit,
@@ -47,8 +43,17 @@ export function PromptItem({
 }: PromptItemProps): JSX.Element {
     const Icon = PROMPT_ICON_MAP[prompt.icon]
 
+    const runPrompt = (): void => {
+        onRun(prompt.id)
+    }
+    const { isPending, toggle, cancel } = useDelayedAction(RUN_DELAY_MS, runPrompt)
+
     return (
-        <Item variant="outline" className="cursor-pointer hover:bg-accent" onClick={() => onRun(prompt.id)}>
+        <Item
+            variant="outline"
+            className={cn('cursor-pointer', isPending ? 'bg-accent' : 'hover:bg-accent')}
+            onClick={toggle}
+        >
             <ItemMedia variant="icon">
                 <Icon className="text-muted-foreground" />
             </ItemMedia>
@@ -59,54 +64,23 @@ export function PromptItem({
                 </ItemTitle>
             </ItemContent>
             <ItemActions>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            className="text-muted-foreground"
-                            aria-label={`「${prompt.label}」的更多操作`}
-                            onClick={(event) => event.stopPropagation()}
-                        >
-                            <MoreHorizontal />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
-                        <DropdownMenuGroup>
-                            <DropdownMenuItem onSelect={() => onEdit(prompt.id)}>
-                                <Pencil />
-                                编辑
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => onCopy(prompt.id)}>
-                                <Copy />
-                                复制提示词
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem disabled={!canMoveUp} onSelect={() => onMove(prompt.id, 'up')}>
-                                <ArrowUp />
-                                上移
-                            </DropdownMenuItem>
-                            <DropdownMenuItem disabled={!canMoveDown} onSelect={() => onMove(prompt.id, 'down')}>
-                                <ArrowDown />
-                                下移
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            {prompt.builtin ? (
-                                <DropdownMenuItem onSelect={() => onRestore(prompt.id)}>
-                                    <RotateCcw />
-                                    恢复默认
-                                </DropdownMenuItem>
-                            ) : (
-                                <DropdownMenuItem variant="destructive" onSelect={() => onDelete(prompt.id)}>
-                                    <Trash2 />
-                                    删除
-                                </DropdownMenuItem>
-                            )}
-                        </DropdownMenuGroup>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                <PromptItemMenu
+                    label={prompt.label}
+                    isBuiltin={prompt.builtin}
+                    canMove={canMove}
+                    onOpen={cancel}
+                    onEdit={(): void => onEdit(prompt.id)}
+                    onCopy={(): void => onCopy(prompt.id)}
+                    onMove={(direction): void => onMove(prompt.id, direction)}
+                    onRestore={(): void => onRestore(prompt.id)}
+                    onDelete={(): void => onDelete(prompt.id)}
+                />
             </ItemActions>
-            <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
+            {isPending ? (
+                <Timer className="size-3.5 shrink-0 animate-pulse text-foreground" />
+            ) : (
+                <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
+            )}
         </Item>
     )
 }

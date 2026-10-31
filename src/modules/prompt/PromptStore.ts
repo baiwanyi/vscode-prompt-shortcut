@@ -6,7 +6,7 @@
  * 注意：所有写操作返回最新列表并立即落盘，调用方不要缓存旧引用；内置模板只允许改文案，不允许删除。
  */
 import { BUILTIN_PROMPT_IDS, createBuiltinPrompts } from './defaults'
-import type { PromptDraft, PromptTemplate } from '../../shared/types'
+import type { MoveDirection, PromptDraft, PromptTemplate } from '../../shared/types'
 import type * as vscode from 'vscode'
 import { isRecord } from '../../shared/guards'
 import { isPromptIconKey } from '../../shared/messages'
@@ -114,7 +114,7 @@ export class PromptStore {
     }
 
     /** 在列表中移动一位，用于调整按钮顺序 */
-    async move(id: string, direction: 'up' | 'down'): Promise<PromptTemplate[]> {
+    async move(id: string, direction: MoveDirection): Promise<PromptTemplate[]> {
         const list = this.getAll()
         const index = list.findIndex((item) => item.id === id)
         if (index < 0) {

@@ -8,6 +8,9 @@
 /** CodeBuddy 对话模式，取值与扩展内置的 BASIC_CHAT_TYPES 对齐 */
 export type ChatMode = 'craft' | 'ask' | 'plan'
 
+/** 列表内移动方向：宿主排序、Webview 菜单与 movePrompt 消息共用同一份取值 */
+export type MoveDirection = 'up' | 'down'
+
 /** 提示词卡片可用的图标键，Webview 侧映射到 lucide 图标组件 */
 export type PromptIconKey =
     'git-commit' | 'git-push' | 'list-ordered' | 'sparkles' | 'bug' | 'search' | 'file-text' | 'terminal'

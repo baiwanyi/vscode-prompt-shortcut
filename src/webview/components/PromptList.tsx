@@ -10,7 +10,7 @@ import { PromptItem } from '@components/PromptItem'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from '@components/ui/empty'
 import { ItemGroup } from '@components/ui/item'
 import { ScrollArea } from '@components/ui/scroll-area'
-import type { PromptTemplate } from '@shared/types'
+import type { MoveDirection, PromptTemplate } from '@shared/types'
 import type { JSX } from 'react'
 
 interface PromptListProps {
@@ -25,7 +25,7 @@ interface PromptListProps {
     onDelete: (id: string) => void
     /** 仅内置模板可用：把该条恢复为出厂内容 */
     onRestore: (id: string) => void
-    onMove: (id: string, direction: 'up' | 'down') => void
+    onMove: (id: string, direction: MoveDirection) => void
 }
 
 export function PromptList({
@@ -63,12 +63,18 @@ export function PromptList({
                 <ItemGroup className="gap-2">
                     {items.map((prompt) => {
                         const index = indexById.get(prompt.id) ?? -1
+                        // 位置规则留在列表层：搜索态下一律不可移动，否则结果顺序会与排序动作不符
+                        const canMove = (direction: MoveDirection): boolean => {
+                            if (isFiltering || index < 0) {
+                                return false
+                            }
+                            return direction === 'up' ? index > 0 : index < prompts.length - 1
+                        }
                         return (
                             <PromptItem
                                 key={prompt.id}
                                 prompt={prompt}
-                                canMoveUp={!isFiltering && index > 0}
-                                canMoveDown={!isFiltering && index >= 0 && index < prompts.length - 1}
+                                canMove={canMove}
                                 onRun={onRun}
                                 onCopy={onCopy}
                                 onEdit={onEdit}
