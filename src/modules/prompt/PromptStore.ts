@@ -3,15 +3,15 @@
  * 数据落在扩展全局状态（globalState）而非工作区，确保同一套提示词跨项目复用；
  * 该键已在 activate 中登记给 Settings Sync，用户开启同步后可在多台设备间共享；
  * 读取时统一做归一化：补齐被删除的内置模板、剔除结构非法的历史数据，避免脏数据进入 Webview。
+ * 顺序以持久化数组为准——用户的排序结果必须保留，只有缺失的内置模板才按出厂顺序补回列表头部。
  * 注意：所有写操作返回最新列表并立即落盘，调用方不要缓存旧引用；内置模板只允许改文案，不允许删除。
  */
 import { BUILTIN_PROMPT_IDS, createBuiltinPrompts } from './defaults'
 import type { MoveDirection, PromptDraft, PromptTemplate } from '../../shared/types'
 import type * as vscode from 'vscode'
 import { isRecord } from '../../shared/guards'
-import { isPromptIconKey } from '../../shared/messages'
 import { MAX_LABEL_LENGTH, MAX_PROMPT_LENGTH } from '../../shared/promptLimits'
-import { isChatMode } from '../../shared/types'
+import { isChatMode, isPromptIconKey } from '../../shared/types'
 
 /** 存储键：既是 globalState 的读写键，也是登记给 Settings Sync 的同步键（见 activate） */
 export const PROMPT_STORAGE_KEY = 'webianPrompt.templates.v1'
@@ -43,7 +43,11 @@ function normalizeTemplate(raw: unknown, index: number): PromptTemplate | null {
 export class PromptStore {
     constructor(private readonly memento: vscode.Memento) {}
 
-    /** 读取并归一化模板列表；内置模板缺失时按内置顺序补回原位 */
+    /**
+     * 读取并归一化模板列表。
+     * 顺序沿用持久化数组，move 的结果因此能真正保留；缺失的内置模板按出厂顺序补在最前，
+     * 这样首次使用与清空存储后的结果仍是稳定出厂序，不会被历史数据打乱。
+     */
     getAll(): PromptTemplate[] {
         const raw = this.memento.get<unknown>(PROMPT_STORAGE_KEY)
         const stored = Array.isArray(raw)
@@ -52,16 +56,17 @@ export class PromptStore {
                   .filter((item): item is PromptTemplate => item !== null)
             : []
 
-        const builtinFallback = createBuiltinPrompts()
+        const storedIds = new Set(stored.map((item) => item.id))
+        const missingBuiltins = createBuiltinPrompts().filter((item) => !storedIds.has(item.id))
+        // 重复 id 只保留首个：脏数据可能由早期版本或手工同步写入，重复渲染会让条目 id 冲突
+        const seenIds = new Set<string>()
         const result: PromptTemplate[] = []
-        for (const builtin of builtinFallback) {
-            const existing = stored.find((item) => item.id === builtin.id)
-            result.push(existing ? { ...existing, builtin: true } : builtin)
-        }
-        for (const item of stored) {
-            if (!BUILTIN_PROMPT_IDS.includes(item.id)) {
-                result.push(item)
+        for (const item of [...missingBuiltins, ...stored]) {
+            if (seenIds.has(item.id)) {
+                continue
             }
+            seenIds.add(item.id)
+            result.push(item)
         }
         return result
     }
@@ -79,6 +84,7 @@ export class PromptStore {
 
         if (index >= 0) {
             const current = list[index]
+            // 仅为满足 noUncheckedIndexedAccess：index 来自 findIndex >= 0，运行时不会缺失
             if (!current) {
                 return list
             }
@@ -125,6 +131,7 @@ export class PromptStore {
             return list
         }
         const [moved] = list.splice(index, 1)
+        // 同上：index 合法时 splice 必返回一个元素，判空只为收窄类型
         if (!moved) {
             return list
         }

@@ -65,7 +65,7 @@ export class WebviewMessenger {
             return
         }
         this.isNewPromptPending = false
-        await this.post({ type: 'editPrompt', payload: {} })
+        await this.post({ type: 'editPrompt' })
     }
 
     /** 请求打开新建编辑器：未握手时先登记，等 ready 后补发，否则消息会被静默丢弃 */
@@ -74,7 +74,7 @@ export class WebviewMessenger {
             this.isNewPromptPending = true
             return
         }
-        await this.post({ type: 'editPrompt', payload: {} })
+        await this.post({ type: 'editPrompt' })
     }
 
     /** 下发消息；视图不存在时静默丢弃 */

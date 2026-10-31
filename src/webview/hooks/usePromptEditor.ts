@@ -1,7 +1,7 @@
 /**
  * 提示词编辑弹窗的状态机。
  * 负责「按 id 取模板并转成草稿」、开关弹窗与提交；提交只把 PromptDraft 交给宿主，校验与持久化都在宿主侧完成。
- * 编辑请求来自宿主消息与卡片点击两条路径，统一走 openEdit，避免两处各写一遍查找逻辑。
+ * 编辑入口分两条：宿主只会请求新建（无 id），按 id 编辑由卡片点击在 Webview 内直接触发。
  * 注意：id 查不到时保持弹窗关闭——此时模板多半已被删除，弹出空表单会被误当成「新建」。
  */
 import { useCallback, useState } from 'react'
@@ -64,7 +64,7 @@ export function usePromptEditor(prompts: PromptTemplate[]): PromptEditorApi {
     const handleHostMessage = useCallback(
         (message: HostToWebviewMessage): void => {
             if (message.type === 'editPrompt') {
-                openEdit(message.payload.id)
+                openEdit()
             }
         },
         [openEdit],

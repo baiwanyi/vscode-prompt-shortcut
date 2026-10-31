@@ -1,8 +1,8 @@
 {
     "$schema": "https://json.schemastore.org/package.json",
     "name": "webian-prompt",
-    "displayName": "微边提示词",
-    "description": "AI 提示词管理器：一键把预设提示词发送到 CodeBuddy 对话；编辑器右键通过「使用 WebianCode 进行」子菜单提供修复、审查、优化、规范、重构。",
+    "displayName": "WebianCode Prompt",
+    "description": "增强 CodeBuddy 提示词管理",
     "version": "0.1.0",
     "publisher": "Baiwanyi",
     "license": "MIT",
@@ -184,7 +184,7 @@
                         "plan"
                     ],
                     "default": "craft",
-                    "markdownDescription": "发送提示词时使用的 CodeBuddy 对话模式。"
+                    "markdownDescription": "右键菜单动作未预设模式时使用的默认对话模式。侧边栏卡片始终按各自选定的模式发送，不受此项影响。"
                 },
                 "webianPrompt.codebuddy.autoSend": {
                     "type": "boolean",
@@ -231,7 +231,6 @@
         "eslint-plugin-react-refresh": "^0.5.7",
         "globals": "^17.13.0",
         "lucide-react": "^1.65.0",
-        "next-themes": "^0.4.6",
         "prettier": "^3.9.10",
         "radix-ui": "^1.8.1",
         "react": "^19.3.1",

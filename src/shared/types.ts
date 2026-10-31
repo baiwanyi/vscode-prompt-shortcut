@@ -26,6 +26,11 @@ export const PROMPT_ICON_KEYS: readonly PromptIconKey[] = [
     'terminal',
 ]
 
+/** 校验图标键取值：宿主读档、草稿收敛与 Webview 选项组共用同一份白名单 */
+export function isPromptIconKey(value: unknown): value is PromptIconKey {
+    return typeof value === 'string' && PROMPT_ICON_KEYS.some((key) => key === value)
+}
+
 export const CHAT_MODES: readonly ChatMode[] = ['craft', 'ask', 'plan']
 
 /** 校验对话模式取值：宿主读档与 Webview 收窄共用同一份白名单 */
@@ -58,12 +63,13 @@ export interface PromptDraft {
     mode: ChatMode
 }
 
-/** CodeBuddy 集成状态，用于在面板顶部提示可用性 */
+/**
+ * CodeBuddy 集成状态，用于在面板顶部提示可用性。
+ * 只暴露界面真正消费的两项：命令 ID 属内部通路细节，展示层不呈现，因此不进协议。
+ */
 export interface CodeBuddyStatus {
     /** 是否探测到可用的发送命令 */
     detected: boolean
-    /** 实际使用的命令 ID */
-    commandId: string
     /** 是否会自动触发发送 */
     autoSend: boolean
 }

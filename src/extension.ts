@@ -3,37 +3,21 @@
  * 负责装配三个核心部件：提示词存储（globalState）、CodeBuddy 桥接（命令通道）、侧边栏 Webview，
  * 并把命令面板、视图标题按钮与编辑器右键菜单统一注册到扩展上下文；宿主业务模块统一收在 src/modules。
  * 注意：Webview 视图必须在 activate 内同步注册，否则视图首次展开时不会渲染；
- * 配置项统一通过 readBridgeConfig 读取，避免各处散落默认值导致行为不一致。
+ * 配置项统一通过 config 模块的 resolveBridgeConfig 读取，避免各处散落默认值导致行为不一致。
  */
 import * as vscode from 'vscode'
 import { CodeBuddyBridge } from './modules/codebuddy/CodeBuddyBridge'
+import { resolveBridgeConfig } from './modules/codebuddy/config'
 import { registerContextActions } from './modules/commands/contextActions'
 import { PROMPT_STORAGE_KEY, PromptStore } from './modules/prompt/PromptStore'
 import { PromptSidebarProvider } from './modules/views/PromptSidebarProvider'
-import type { BridgeConfig } from './modules/codebuddy/CodeBuddyBridge'
-import type { ChatMode } from './shared/types'
+import type { FeedbackLevel } from './modules/common/notify'
 
 const SIDEBAR_VIEW_ID = 'webianPrompt.sidebar'
 const SIDEBAR_CONTAINER_ID = 'webianPrompt'
-const DEFAULT_SEND_COMMAND = 'tencentcloud.codingcopilot.chat.sendMessage'
-const DEFAULT_NEW_CHAT_COMMAND = 'tencentcloud.codingcopilot.sendToChat'
-
-function readBridgeConfig(): BridgeConfig {
-    const config = vscode.workspace.getConfiguration('webianPrompt')
-    const mode = config.get<ChatMode>('codebuddy.mode', 'craft')
-    return {
-        sendCommand: config.get<string>('codebuddy.sendCommand', DEFAULT_SEND_COMMAND) || DEFAULT_SEND_COMMAND,
-        newChatCommand:
-            config.get<string>('codebuddy.newChatCommand', DEFAULT_NEW_CHAT_COMMAND) || DEFAULT_NEW_CHAT_COMMAND,
-        mode,
-        autoSend: config.get<boolean>('codebuddy.autoSend', true),
-        fallbackToClipboard: config.get<boolean>('codebuddy.fallbackToClipboard', true),
-        reuseConversation: config.get<boolean>('codebuddy.reuseConversation', true),
-    }
-}
 
 /** 状态栏提示比弹窗更轻量，错误才升级为弹窗 */
-function notify(level: 'info' | 'warn' | 'error', message: string): void {
+function notify(level: FeedbackLevel, message: string): void {
     if (level === 'error') {
         void vscode.window.showErrorMessage(message)
         return
@@ -54,7 +38,10 @@ export function activate(context: vscode.ExtensionContext): void {
     // 登记同步键：用户开启 Settings Sync 后，提示词随设置一起在多台设备间同步
     context.globalState.setKeysForSync([PROMPT_STORAGE_KEY])
     const store = new PromptStore(context.globalState)
-    const bridge = new CodeBuddyBridge(readBridgeConfig)
+    // 桥接层按需创建排障日志通道，释放动作统一挂到扩展上下文
+    const bridge = new CodeBuddyBridge(resolveBridgeConfig, (disposable): void => {
+        context.subscriptions.push(disposable)
+    })
     const provider = new PromptSidebarProvider(context.extensionUri, store, bridge)
 
     context.subscriptions.push(

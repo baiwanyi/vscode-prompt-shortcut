@@ -11,14 +11,12 @@
  * 注意：命令 ID 与参数签名属于对方扩展的内部实现，版本升级可能变动，必须允许通过配置覆盖。
  */
 import * as vscode from 'vscode'
+import { callCurrentChatOnce, callNewChatOnce, readConversationId } from './chatCommandChannel'
+import { CHAT_CONTAINER_VIEW_ID, CHAT_VIEW_ID, CONTEXT_COMMAND } from './config'
+import type { BridgeConfig } from './config'
 import type { ChatMode, CodeBuddyStatus, SendOutcome } from '../../shared/types'
-import { isRecord } from '../../shared/guards'
-
-/** CodeBuddy 聊天视图 ID，focus 该视图可触发其扩展激活 */
-const CHAT_VIEW_ID = 'coding-copilot.webviews.chat'
-
-/** 读取当前会话上下文的命令，返回值里带 conversationId（无会话时为空串） */
-const CONTEXT_COMMAND = 'tencentcloud.codingcopilot.getContext'
+import type { Reporter } from '../common/createReporter'
+import { createReporter } from '../common/createReporter'
 
 /** 激活到命令可用的等待上限：实测 2-3s，慢机器更久，故给到 10s 再考虑降级 */
 const ACTIVATION_TIMEOUT_MS = 10000
@@ -27,26 +25,6 @@ const ACTIVATION_POLL_INTERVAL_MS = 250
 /** 复用当前会话的重试参数：聊天视图刚激活时其 rpc 通道可能尚未就绪 */
 const CURRENT_CHAT_ATTEMPTS = 3
 const CURRENT_CHAT_RETRY_INTERVAL_MS = 500
-
-/** 排障日志通道：只在复用失败、回退等异常路径写入，正常发送不留噪音 */
-let logChannel: vscode.OutputChannel | undefined
-
-function report(message: string): void {
-    logChannel ??= vscode.window.createOutputChannel('微边提示词')
-    logChannel.appendLine(`[CodeBuddy] ${message}`)
-}
-
-export interface BridgeConfig {
-    /** 复用当前会话的发送命令（chat.sendMessage） */
-    sendCommand: string
-    /** 复用失败时用于新建会话的命令（sendToChat） */
-    newChatCommand: string
-    mode: ChatMode
-    autoSend: boolean
-    fallbackToClipboard: boolean
-    /** 是否优先在当前会话里发送；关闭后每次点击都会新建会话 */
-    reuseConversation: boolean
-}
 
 export interface SendResult {
     outcome: SendOutcome
@@ -59,6 +37,9 @@ interface CommandAttempt {
     detail: string
 }
 
+/** 复用当前会话的尝试结果：成功即终态，失败只带回原因供调用方汇总 */
+type ReuseOutcome = { type: 'sent'; result: SendResult } | { type: 'failed'; reason: string }
+
 function delay(ms: number): Promise<void> {
     return new Promise((resolve) => {
         setTimeout(resolve, ms)
@@ -66,29 +47,48 @@ function delay(ms: number): Promise<void> {
 }
 
 export class CodeBuddyBridge {
-    constructor(private readonly readConfig: () => BridgeConfig) {}
+    private readonly reporter: Reporter
+
+    constructor(
+        private readonly readConfig: () => BridgeConfig,
+        registerDisposable: (disposable: vscode.Disposable) => void,
+    ) {
+        this.reporter = createReporter('微边提示词', registerDisposable)
+    }
+
+    /**
+     * 排障日志：只在降级与失败路径写入，正常发送不产生输出——会话 ID 等内部标识不进面板，
+     * 用户需要的成功/失败结论已由 SendResult.detail 给出。
+     */
+    private report(message: string): void {
+        this.reporter(`[CodeBuddy] ${message}`)
+    }
+
+    /**
+     * 探测并返回实际可用的发送通道：按配置顺序取第一个已注册的命令，全部缺失时返回空串。
+     * 返回值只服务可用性判断与轮询调度，不进入展示层——命令 ID 属对方扩展的内部细节。
+     */
+    async findAvailableCommand(): Promise<string> {
+        const config = this.readConfig()
+        const commands = await vscode.commands.getCommands(true)
+        return this.activeCommands(config).find((id) => commands.includes(id)) ?? ''
+    }
 
     /**
      * 探测是否还有可用的发送通道。
      * 只按当前配置参与的命令判断：关闭复用后若只剩新建通道可用，也应当算「已连接」。
      */
     async isSendCommandAvailable(): Promise<boolean> {
-        const config = this.readConfig()
-        const commands = await vscode.commands.getCommands(true)
-        return this.activeCommands(config).some((id) => commands.includes(id))
+        return (await this.findAvailableCommand()) !== ''
     }
 
     /**
-     * 面板展示所需的状态聚合：命令通路与 autoSend 都取自同一份配置，调用方无需再直接读配置键。
-     * detected 由调用方探测后传入，避免这里重复枚举一次命令列表。
+     * 面板展示所需的状态聚合：可用性与 autoSend 都取自同一份配置，调用方无需再直接读配置键。
+     * detected 由调用方探测后传入（见 findAvailableCommand），避免这里再跑一次 getCommands。
      */
     getStatus(detected: boolean): CodeBuddyStatus {
         const config = this.readConfig()
-        return {
-            detected,
-            commandId: config.reuseConversation ? config.sendCommand : config.newChatCommand,
-            autoSend: config.autoSend,
-        }
+        return { detected, autoSend: config.autoSend }
     }
 
     /**
@@ -100,7 +100,7 @@ export class CodeBuddyBridge {
             await vscode.commands.executeCommand(`${CHAT_VIEW_ID}.focus`)
         } catch {
             try {
-                await vscode.commands.executeCommand('workbench.view.extension.coding-copilot-chat')
+                await vscode.commands.executeCommand(CHAT_CONTAINER_VIEW_ID)
             } catch {
                 return
             }
@@ -128,15 +128,13 @@ export class CodeBuddyBridge {
      */
     async send(prompt: string, overrideMode?: ChatMode): Promise<SendResult> {
         const config = this.readConfig()
-        const mode = overrideMode ?? config.mode
 
         if (!config.autoSend) {
-            await this.copyAndFocus(prompt)
-            return {
-                outcome: 'copied',
-                detail: '已复制提示词并打开 CodeBuddy 对话框，按 Ctrl+V 后回车发送。',
-            }
+            return this.copyOnlyResult(prompt)
         }
+
+        // 只在真正要发送时才解析模式：仅复制路径不经过任何命令，提前求值属于无效计算
+        const mode = overrideMode ?? config.mode
 
         // 未激活时两个命令都不存在：先 focus 触发激活，再轮询等待其注册完成
         if (!(await this.isSendCommandAvailable())) {
@@ -147,19 +145,16 @@ export class CodeBuddyBridge {
         const failures: string[] = []
 
         if (config.reuseConversation) {
-            const conversationId = await this.readConversationId()
-            report(conversationId ? `复用会话：${conversationId}` : '未读到当前会话 ID，交由聊天页决定落点。')
-            const reuse = await this.sendToCurrentChat(config.sendCommand, prompt, mode, conversationId)
-            if (reuse.isOk) {
-                return { outcome: 'sent', detail: '已发送到 CodeBuddy 当前对话。' }
+            const reuse = await this.tryReuseConversation(config, prompt, mode)
+            if (reuse.type === 'sent') {
+                return reuse.result
             }
-            report(`复用失败：${reuse.detail}`)
-            failures.push(reuse.detail)
+            failures.push(reuse.reason)
         }
 
         const newChat = await this.sendToNewChat(config.newChatCommand, prompt, mode)
         if (newChat.isOk) {
-            report('已回退到新建会话发送。')
+            this.report('已回退到新建会话发送。')
             return {
                 outcome: 'sent',
                 detail: config.reuseConversation
@@ -170,16 +165,63 @@ export class CodeBuddyBridge {
         failures.push(newChat.detail)
 
         if (config.fallbackToClipboard) {
-            await this.copyAndFocus(prompt)
-            return {
-                outcome: 'copied',
-                detail: `未找到可用的 CodeBuddy 发送命令，已复制提示词并打开对话框，按 Ctrl+V 后回车发送。（${failures.join('；')}）`,
-            }
+            return this.copyAsFallback(prompt, failures)
         }
 
         return {
             outcome: 'failed',
             detail: `发送到 CodeBuddy 失败（${failures.join('；')}）。请在设置中调整 webianPrompt.codebuddy.sendCommand / newChatCommand。`,
+        }
+    }
+
+    /** 只复制不发送（autoSend 关闭）：剪贴板不可用时给可读结论，而不是抛给命令调用方 */
+    private async copyOnlyResult(prompt: string): Promise<SendResult> {
+        if (!(await this.copyAndFocus(prompt))) {
+            return { outcome: 'failed', detail: '复制到剪贴板失败，请从提示词卡片手动复制后发送。' }
+        }
+        return {
+            outcome: 'copied',
+            detail: '已复制提示词并打开 CodeBuddy 对话框，按 Ctrl+V 后回车发送。',
+        }
+    }
+
+    /**
+     * 复用当前会话的一次尝试：成功即终态，失败只带回原因，由 send 汇总进最终提示。
+     * 读不到会话 ID 时聊天页会自行决定落点，成功文案不能笼统宣称「已发送到当前对话」。
+     */
+    private async tryReuseConversation(config: BridgeConfig, prompt: string, mode: ChatMode): Promise<ReuseOutcome> {
+        const read = await readConversationId(CONTEXT_COMMAND)
+        if (read.issue) {
+            this.report(read.issue)
+        }
+        const conversationId = read.conversationId
+        const reuse = await this.sendToCurrentChat(config.sendCommand, prompt, mode, conversationId)
+        if (reuse.isOk) {
+            return {
+                type: 'sent',
+                result: {
+                    outcome: 'sent',
+                    detail: conversationId
+                        ? '已发送到 CodeBuddy 当前对话。'
+                        : '已在 CodeBuddy 发送；未读到当前会话，落点由 CodeBuddy 决定。',
+                },
+            }
+        }
+        this.report(`复用失败：${reuse.detail}`)
+        return { type: 'failed', reason: reuse.detail }
+    }
+
+    /** 最后的剪贴板降级：写入失败时不能报「已复制」，必须把真实结论交给用户 */
+    private async copyAsFallback(prompt: string, failures: string[]): Promise<SendResult> {
+        if (!(await this.copyAndFocus(prompt))) {
+            return {
+                outcome: 'failed',
+                detail: `发送到 CodeBuddy 失败，且无法写入剪贴板（${failures.join('；')}）。`,
+            }
+        }
+        return {
+            outcome: 'copied',
+            detail: `未找到可用的 CodeBuddy 发送命令，已复制提示词并打开对话框，按 Ctrl+V 后回车发送。（${failures.join('；')}）`,
         }
     }
 
@@ -198,61 +240,36 @@ export class CodeBuddyBridge {
         if (!(await this.hasCommand(command))) {
             return { isOk: false, detail: `未找到复用当前对话的命令「${command}」` }
         }
-        const options = conversationId ? { mode, conversationId } : { mode }
         let lastError = ''
         for (let index = 0; index < CURRENT_CHAT_ATTEMPTS; index += 1) {
-            try {
-                const result: unknown = await vscode.commands.executeCommand(command, { message: prompt, options })
-                // 会话失效时命令不抛错，而是返回 { error }，必须显式识别才能进入回退链路
-                if (isRecord(result) && typeof result.error === 'string') {
-                    return { isOk: false, detail: `复用当前对话被拒绝：${result.error}` }
-                }
+            const outcome = await callCurrentChatOnce(command, prompt, mode, conversationId)
+            if (outcome.type === 'ok') {
                 return { isOk: true, detail: '' }
-            } catch (error) {
-                lastError = error instanceof Error ? error.message : String(error)
+            }
+            // 被拒绝说明会话已失效，重试没有意义，直接进入新建会话的回退链路
+            if (outcome.type === 'rejected') {
+                return { isOk: false, detail: `复用当前对话被拒绝：${outcome.reason}` }
+            }
+            lastError = outcome.reason
+            // focus 是下一次重试的前置动作：最后一次失败后不再抢占用户焦点
+            if (index < CURRENT_CHAT_ATTEMPTS - 1) {
                 await this.focusChatView()
-                if (index < CURRENT_CHAT_ATTEMPTS - 1) {
-                    await delay(CURRENT_CHAT_RETRY_INTERVAL_MS)
-                }
+                await delay(CURRENT_CHAT_RETRY_INTERVAL_MS)
             }
         }
         return { isOk: false, detail: `复用当前对话失败：${lastError}` }
     }
 
-    /**
-     * 读取 CodeBuddy 当前会话 ID。
-     * `getContext` 是对方暴露的只读通道（不传 ensureConversation 时不会新建会话），
-     * 读不到或命令缺失时返回空串，由调用方退化为「不指定会话」。
-     */
-    private async readConversationId(): Promise<string> {
-        if (!(await this.hasCommand(CONTEXT_COMMAND))) {
-            report(`未找到读取上下文的命令「${CONTEXT_COMMAND}」`)
-            return ''
-        }
-        try {
-            const raw: unknown = await vscode.commands.executeCommand(CONTEXT_COMMAND)
-            if (!isRecord(raw)) {
-                return ''
-            }
-            return typeof raw.conversationId === 'string' ? raw.conversationId : ''
-        } catch (error) {
-            report(`读取当前会话失败：${error instanceof Error ? error.message : String(error)}`)
-            return ''
-        }
-    }
-
-    /** 新建会话发送：该命令固定 `newConversation: true`，参数为 `{ prompt, mode }` */
+    /** 新建会话发送：命令固定 `newConversation: true`，参数形状与错误翻译都在 channel 内 */
     private async sendToNewChat(command: string, prompt: string, mode: ChatMode): Promise<CommandAttempt> {
         if (!(await this.hasCommand(command))) {
             return { isOk: false, detail: `未找到新建对话的命令「${command}」` }
         }
-        try {
-            await vscode.commands.executeCommand(command, { prompt, mode })
+        const outcome = await callNewChatOnce(command, prompt, mode)
+        if (outcome.type === 'ok') {
             return { isOk: true, detail: '' }
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error)
-            return { isOk: false, detail: `新建对话发送失败：${message}` }
         }
+        return { isOk: false, detail: `新建对话发送失败：${outcome.reason}` }
     }
 
     private async hasCommand(command: string): Promise<boolean> {
@@ -265,8 +282,17 @@ export class CodeBuddyBridge {
         return config.reuseConversation ? [config.sendCommand, config.newChatCommand] : [config.newChatCommand]
     }
 
-    private async copyAndFocus(prompt: string): Promise<void> {
-        await vscode.env.clipboard.writeText(prompt)
+    /**
+     * 写入剪贴板并聚焦对话框；剪贴板不可用时返回 false，由调用方给出可读结论。
+     * focusChatView 内部已吞掉焦点异常，这里只需守住剪贴板这一步。
+     */
+    private async copyAndFocus(prompt: string): Promise<boolean> {
+        try {
+            await vscode.env.clipboard.writeText(prompt)
+        } catch {
+            return false
+        }
         await this.focusChatView()
+        return true
     }
 }

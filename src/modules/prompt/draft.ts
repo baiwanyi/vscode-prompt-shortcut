@@ -6,9 +6,9 @@
  * 注意：正文允许为空，只有名称为空或超长才算非法；长度阈值必须取自 shared/promptLimits，不要就地写数字。
  */
 import type { PromptDraft, PromptTemplate } from '../../shared/types'
-import { isPromptIconKey } from '../../shared/messages'
 import { MAX_LABEL_LENGTH, MAX_PROMPT_LENGTH } from '../../shared/promptLimits'
-import { isChatMode } from '../../shared/types'
+import { isLabelMissing } from '../../shared/promptValidation'
+import { isChatMode, isPromptIconKey } from '../../shared/types'
 
 /** 把消息载荷收敛为可信草稿：Webview 传入的字段可能缺失或越界，非法时返回 null */
 export function parseDraft(value: unknown): PromptDraft | null {
@@ -26,13 +26,13 @@ export function parseDraft(value: unknown): PromptDraft | null {
     if (!isPromptIconKey(icon) || !isChatMode(mode)) {
         return null
     }
-    return { id, label: label.trim(), prompt, icon, mode }
+    return { id, label: label.trim(), prompt: prompt.trim(), icon, mode }
 }
 
 /** 校验草稿，返回错误信息数组（空数组表示通过）；正文允许为空 */
 export function validateDraft(draft: PromptDraft): string[] {
     const errors: string[] = []
-    if (!draft.label.trim()) {
+    if (isLabelMissing(draft.label)) {
         errors.push('名称不能为空')
     } else if (draft.label.length > MAX_LABEL_LENGTH) {
         errors.push(`名称不能超过 ${MAX_LABEL_LENGTH} 个字符`)

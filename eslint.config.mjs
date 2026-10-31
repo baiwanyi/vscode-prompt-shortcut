@@ -6,7 +6,8 @@
  * 关键约束：全局禁用 inline 配置（不得用 eslint-disable 规避规则）；`src/webview/components/ui` 是
  * components.json 中 shadcn CLI 的写盘目录（aliases.ui = @components/ui），属托管源码，
  * 仅做语法与安全性检查，避免 CLI 覆盖后约束反复失效。
- * 取舍说明：eslint-plugin-react 尚未支持 ESLint 10（peer 仅到 ^9.7），故不引入其 JSX 规则；
+ * 取舍说明：eslint-plugin-react 的 peer 范围尚未覆盖本项目使用的 ESLint 10（复核日期 2026-11-01），
+ * 故不引入其 JSX 规则；升级 ESLint 或该插件后需重新评估此处取舍；
  * 组件侧正确性由 react-hooks（hooks 调用约束）与 react-refresh（HMR 边界）两条插件承担。
  */
 import reactX from '@eslint-react/eslint-plugin'
@@ -191,7 +192,7 @@ export default defineConfig([
             '@typescript-eslint/no-explicit-any': 'off',
             // 官方命名自成约定（下划线前缀、单字母泛型等），不套用项目命名规范
             '@typescript-eslint/naming-convention': 'off',
-            // 以下七条为类型感知规则兜底：radix-ui 组件的类型推导与项目规则存在张力，
+            // 以下八条为类型感知规则兜底：radix-ui 组件的类型推导与项目规则存在张力，
             // 逐处收窄成本高且改动会被 CLI 覆盖，故整目录豁免；同规则在项目自有代码中仍然生效
             // 把 any 赋值给变量或属性
             '@typescript-eslint/no-unsafe-assignment': 'off',

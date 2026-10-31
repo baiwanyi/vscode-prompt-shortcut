@@ -12,6 +12,7 @@ import type { WebviewToHostMessage } from '../../shared/messages'
 import type { PromptDraft, PromptStatePayload, PromptTemplate } from '../../shared/types'
 import type { CodeBuddyBridge } from '../codebuddy/CodeBuddyBridge'
 import type { PromptStore } from '../prompt/PromptStore'
+import { describeError } from '../../shared/errors'
 import { CodeBuddyAvailabilityPoller } from '../codebuddy/CodeBuddyAvailabilityPoller'
 import { dispatchPrompt } from '../codebuddy/dispatchPrompt'
 import { confirmAction } from '../common/confirm'
@@ -74,7 +75,7 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
         await this.pushState()
     }
 
-    /** 恢复出厂提示词；命令面板、视图标题栏与 Webview 三处入口共用同一套二次确认 */
+    /** 恢复出厂提示词：整体重置只保留命令面板入口（破坏性大，不放进视图标题栏），条目内的单条恢复见 restorePromptById */
     async resetWithConfirm(): Promise<void> {
         const isConfirmed = await confirmAction('恢复默认提示词会删除全部自定义模板，是否继续？', '恢复默认')
         if (!isConfirmed) {
@@ -236,18 +237,18 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
         if (!this.messenger.hasView) {
             return
         }
-        const isDetected = await this.bridge.isSendCommandAvailable()
+        const commandId = await this.bridge.findAvailableCommand()
         // 探测期间视图可能已被销毁：此时既不必推送，也不该继续调度轮询
         if (!this.messenger.hasView) {
             return
         }
         const payload: PromptStatePayload = {
             prompts: this.store.getAll(),
-            // 命令通路与 autoSend 由 bridge 统一给出，Provider 不再直接触碰配置键
-            codebuddy: this.bridge.getStatus(isDetected),
+            // 可用性与 autoSend 由 bridge 统一给出，Provider 不再直接触碰配置键
+            codebuddy: this.bridge.getStatus(commandId !== ''),
         }
         await this.messenger.post({ type: 'state', payload })
-        if (isDetected) {
+        if (commandId !== '') {
             this.poller.reset()
             return
         }
@@ -256,7 +257,7 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
 
     /** 消息处理链路的兜底：详情只留下行日志，界面给可读提示，避免未捕获拒绝导致点击无反应 */
     private async reportUnexpectedError(error: unknown): Promise<void> {
-        console.error('[webianPrompt] 处理 Webview 消息失败：', error instanceof Error ? error.message : String(error))
+        console.error('[webianPrompt] 处理 Webview 消息失败：', describeError(error))
         await this.messenger.notify('error', '操作失败，请重试；若持续出现可重新加载窗口。')
     }
 }

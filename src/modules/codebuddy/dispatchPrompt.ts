@@ -7,14 +7,13 @@
  */
 import type { CodeBuddyBridge, SendResult } from './CodeBuddyBridge'
 import type { ChatMode } from '../../shared/types'
-
-export type FeedbackLevel = 'info' | 'warn' | 'error'
+import type { Notify } from '../common/notify'
 
 export async function dispatchPrompt(
     bridge: CodeBuddyBridge,
     prompt: string,
     mode: ChatMode | undefined,
-    notify: (level: FeedbackLevel, message: string) => void,
+    notify: Notify,
 ): Promise<SendResult> {
     const result = await bridge.send(prompt, mode)
     if (result.outcome === 'failed') {

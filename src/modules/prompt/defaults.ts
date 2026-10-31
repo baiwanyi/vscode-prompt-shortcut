@@ -7,6 +7,7 @@
  */
 import type { PromptTemplate } from '../../shared/types'
 
+/** 内置模板的时间哨兵：0 表示出厂内容、无真实创建时间，避免被误读为用户创建于 1970 年 */
 const CREATED_AT = 0
 
 interface BuiltinSeed {
@@ -38,6 +39,13 @@ const SEEDS: readonly BuiltinSeed[] = [
         icon: 'list-ordered',
         mode: 'craft',
         prompt: '',
+    },
+    {
+        id: 'builtin-cleanup',
+        label: '排查遗留代码',
+        icon: 'search',
+        mode: 'ask',
+        prompt: '请对项目代码库进行全面评估，系统性地识别并归类孤儿代码、死代码及旧代码残留。评估需覆盖以下方面：孤儿代码（无调用方或被引用的函数、类、模块）、死代码（逻辑上不可达或条件恒不成立的代码路径）、旧代码残留（被新实现替代但未清理的历史代码、过时注释、废弃的配置项与依赖）。对每类问题给出所在位置、判定依据、影响范围（如增加维护成本、混淆逻辑、潜在安全隐患）及清理优先级建议。最终输出结构化评估报告，按类别汇总问题清单，并给出整体清理建议与风险提示。',
     },
 ]
 

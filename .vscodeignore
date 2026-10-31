@@ -3,6 +3,11 @@
 .codebuddy/**
 src/**
 components.json
+eslint.config.mjs
+.prettierrc.json
+.prettierignore
+.gitattributes
+README.md
 node_modules/**
 scripts/**
 vite.config.mts

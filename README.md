@@ -21,17 +21,24 @@ webian.prompt/
 │   ├── extension.ts               # 激活入口：装配 store / bridge / provider 并注册命令
 │   ├── modules/                   # 扩展宿主（Node 侧）
 │   │   ├── codebuddy/
-│   │   │   ├── CodeBuddyBridge.ts # 与 CodeBuddy 交互的唯一出口（含降级链路）
 │   │   │   ├── CodeBuddyAvailabilityPoller.ts  # 发送命令可用性的退避轮询状态机
+│   │   │   ├── CodeBuddyBridge.ts # 与 CodeBuddy 交互的唯一出口（含降级链路）
+│   │   │   ├── chatCommandChannel.ts  # 三条内部命令的单次调用契约与结果翻译
+│   │   │   ├── config.ts          # 命令 ID / 视图 ID 常量与扩展设置解析
 │   │   │   └── dispatchPrompt.ts  # 发送 + 结果反馈的公共编排
 │   │   ├── commands/
-│   │   │   └── contextActions.ts  # 右键五动作：拼目标描述后发往 CodeBuddy
+│   │   │   ├── actionRegistry.ts  # 右键动作清单（命令 ID + 提示词构建器 + 模式）
+│   │   │   ├── contextActions.ts  # 把动作清单逐条注册为命令
+│   │   │   ├── runContextAction.ts  # 解析目标 → 拼提示词 → 发送
+│   │   │   └── targetFile.ts      # 目标文件解析与「路径 + 行号」描述
 │   │   ├── common/
-│   │   │   ├── confirm.ts        # modal 二次确认封装（按钮文案同源比较）
+│   │   │   ├── confirm.ts         # modal 二次确认封装（按钮文案同源比较）
+│   │   │   ├── createReporter.ts  # 按需创建输出面板通道并登记释放
+│   │   │   ├── notify.ts          # 宿主侧提示等级与通道契约
 │   │   │   └── webviewHtml.ts     # 读取构建产物，注入 CSP 并重写资源基址
 │   │   ├── prompt/
 │   │   │   ├── actions.ts         # 右键动作提示词（修复/审查/优化/规范/重构）
-│   │   │   ├── defaults.ts        # 侧边栏内置提示词（提交/推送/按顺序/按推荐）
+│   │   │   ├── defaults.ts        # 侧边栏内置提示词（提交/推送/按顺序/排查遗留）
 │   │   │   ├── draft.ts           # 草稿解析 / 校验 / 发送文本规则
 │   │   │   └── PromptStore.ts     # globalState 持久化 + 归一化 + 增删改排序
 │   │   └── views/
@@ -39,24 +46,35 @@ webian.prompt/
 │   │       └── WebviewMessenger.ts       # 视图装配、握手缓存与消息下发
 │   ├── webview/                   # 侧边栏界面（浏览器侧）
 │   │   ├── index.html             # Vite HTML 入口（宿主据此注入 CSP）
-│   │   ├── main.tsx / bootstrap.tsx  # 挂载入口与面板引导组件（首屏加载态用 Spinner）
-│   │   ├── components/            # PromptItem、PromptItemMenu、PromptEditorDialog、PanelHeader、PromptList、ui/*
-│   │   ├── hooks/                 # useDelayedAction / useHostMessages / usePromptState / usePromptEditor
-│   │   ├── lib/{vscode,icons}.ts  # 类名合并直接用 cn 包，不再维护 utils
-│   │   └── styles.css             # Tailwind 4 主题令牌映射
+│   │   ├── main.tsx               # 挂载入口：主题同步 + TooltipProvider
+│   │   ├── bootstrap.tsx          # 面板引导组件（首屏加载态用 Spinner）
+│   │   ├── styles.css             # Tailwind 4 主题令牌映射（只保留在用令牌）
+│   │   ├── components/            # 业务组件：PanelHeader*、PromptList、PromptItem*、PromptEditorDialog、*Picker
+│   │   │   └── ui/                # shadcn 托管组件（CLI 写盘目录，勿手改结构）
+│   │   ├── hooks/                 # useDelayedAction / useDraftForm / useHostMessages / usePromptEditor
+│   │   │                          # usePromptState / useSearchOverlay
+│   │   └── lib/                   # chat-mode-meta / connection-state / draft-form / icons
+│   │                              # prompt-filter / vscode（+ vscode-env.d.ts）
 │   └── shared/                    # 两侧共享的类型、协议与常量
-│       ├── types.ts
-│       ├── messages.ts
+│       ├── errors.ts              # 未知异常 → 可读文本（容错序列化）
 │       ├── guards.ts              # 结构守卫（isRecord）
-│       └── promptLimits.ts        # 名称 / 正文长度上限（两端同源）
+│       ├── messages.ts            # Webview ↔ 宿主消息协议
+│       ├── promptLimits.ts        # 名称 / 正文长度上限（两端同源）
+│       ├── promptValidation.ts    # 字段业务判定谓词（判空口径唯一来源）
+│       └── types.ts               # 领域类型与枚举白名单
 ├── resources/
+│   ├── icon.png                   # 扩展市场图标（package.json icon）
 │   └── icon.svg                   # 活动栏图标（24x24 单色，currentColor 跟随主题）
-├── dist/
+├── dist/                          # 构建产物（gitignore）
 │   ├── extension.js               # 扩展宿主产物（esbuild，CJS）
 │   └── webview/                   # 侧边栏前端产物（Vite：index.html + assets/）
 ├── scripts/
 │   └── esbuild.mjs                # 扩展宿主构建脚本（CJS 单文件产物）
-└── vite.config.mts / tsconfig.json
+├── .vscode/                       # launch.json（F5 调试）与 tasks.json（compile / watch）
+├── components.json                # shadcn CLI 配置（别名与项目 paths 同步）
+├── eslint.config.mjs              # 扁平配置：宿主 + Webview + 托管 ui 目录豁免
+├── vite.config.mts / tsconfig.json
+└── pnpm-workspace.yaml            # 仅承载 allowBuilds 白名单，非 monorepo 声明
 ```
 
 ## 与 CodeBuddy 的交互方式
@@ -156,13 +174,13 @@ pnpm run package    # 产出 releases/webian-prompt-0.1.0.vsix
 | `webianPrompt.codebuddy.reuseConversation` | `true` | 是否发往当前对话；关闭后每次点击都新建会话 |
 | `webianPrompt.codebuddy.sendCommand` | `tencentcloud.codingcopilot.chat.sendMessage` | 复用当前对话的命令 ID |
 | `webianPrompt.codebuddy.newChatCommand` | `tencentcloud.codingcopilot.sendToChat` | 复用失败时新建会话的命令 ID |
-| `webianPrompt.codebuddy.mode` | `craft` | 对话模式：craft / ask / plan |
+| `webianPrompt.codebuddy.mode` | `craft` | 右键动作未预设模式时的默认模式：craft / ask / plan（侧边栏卡片按各自模式发送，不受影响） |
 | `webianPrompt.codebuddy.autoSend` | `true` | 关闭后只写剪贴板不发送 |
 | `webianPrompt.codebuddy.fallbackToClipboard` | `true` | 两条命令都不可用时的剪贴板降级 |
 
 ## 数据存储
 
-提示词存于 `context.globalState` 的 `webianPrompt.templates.v1`，跨工作区共享。该键通过 `globalState.setKeysForSync` 登记到 Settings Sync，用户开启同步（Settings 分类）后会在多台设备间共享；扩展状态以键为粒度整体同步、不做逐条合并，多设备同时修改时以 VS Code 的冲突选择为准。读取时做归一化：补齐被删除的内置模板、剔除结构非法的历史数据；内置模板只可改文案、不可删除。
+提示词存于 `context.globalState` 的 `webianPrompt.templates.v1`，跨工作区共享。该键通过 `globalState.setKeysForSync` 登记到 Settings Sync，用户开启同步（Settings 分类）后会在多台设备间共享；扩展状态以键为粒度整体同步、不做逐条合并，多设备同时修改时以 VS Code 的冲突选择为准。读取时做归一化：补齐被删除的内置模板、剔除结构非法的历史数据、跳过重复 id；**顺序以持久化数组为准**，内置模板只在缺失时按出厂顺序补到列表头部，因此上移/下移对所有条目都生效。内置模板只可改文案、不可删除。整体重置只在命令面板提供（`webianPrompt.resetPrompts`），视图标题栏不放入口以避免误点清空自定义模板。
 
 ## 关键约定与已知限制
 

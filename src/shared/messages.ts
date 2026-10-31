@@ -4,7 +4,7 @@
  * 所有消息只承载纯数据，宿主侧必须重新校验载荷，不可信任 Webview 传入的 id 与正文。
  * 注意：新增消息类型时两侧 switch 必须同时补齐，否则 noFallthroughCasesInSwitch 会报错。
  */
-import type { MoveDirection, PromptDraft, PromptIconKey, PromptStatePayload } from './types'
+import type { MoveDirection, PromptDraft, PromptStatePayload } from './types'
 
 /** Webview -> 宿主 */
 export type WebviewToHostMessage =
@@ -25,20 +25,7 @@ export type WebviewToHostMessage =
 export type HostToWebviewMessage =
     | { type: 'state'; payload: PromptStatePayload }
     | { type: 'notify'; level: 'info' | 'warn' | 'error'; message: string }
-    | { type: 'editPrompt'; payload: { id?: string } }
+    /** 请求打开编辑器新建模板；按 id 编辑由卡片点击在 Webview 内自行触发，不走协议 */
+    | { type: 'editPrompt' }
     /** 轮询次数耗尽仍未检测到 CodeBuddy，Webview 据此弹出带「刷新」按钮的常驻提示 */
     | { type: 'codebuddyMissing' }
-
-/** 图标键白名单校验，宿主侧收到草稿时复用 */
-export function isPromptIconKey(value: unknown): value is PromptIconKey {
-    return (
-        value === 'git-commit' ||
-        value === 'git-push' ||
-        value === 'list-ordered' ||
-        value === 'sparkles' ||
-        value === 'bug' ||
-        value === 'search' ||
-        value === 'file-text' ||
-        value === 'terminal'
-    )
-}
