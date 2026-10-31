@@ -43,12 +43,13 @@ export function Bootstrap(): JSX.Element {
                         onCopy={(id) => postToHost({ type: 'copyPrompt', id })}
                         onEdit={openEdit}
                         onDelete={(id) => postToHost({ type: 'deletePrompt', id })}
+                        onRestore={(id) => postToHost({ type: 'resetPrompt', id })}
                         onMove={(id, direction) => postToHost({ type: 'movePrompt', id, direction })}
                     />
                 </>
             ) : (
-                <div className="flex min-h-0 flex-1 flex-col justify-center gap-2 p-3">
-                    <Spinner className="size-5" />
+                <div className="flex min-h-0 flex-1 justify-center p-3">
+                    <Spinner className="size-5 text-muted-foreground" />
                 </div>
             )}
 

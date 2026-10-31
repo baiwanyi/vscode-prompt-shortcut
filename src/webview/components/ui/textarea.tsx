@@ -1,7 +1,7 @@
 /**
  * 多行输入框（shadcn registry 官方实现）。
  * 高度与字号由调用方通过 className 控制，校验态同样使用 aria-invalid。
- * 注意：内容滚动交给浏览器原生能力，不要在外层再套一层 ScrollArea。
+ * 注意：组件带 field-sizing-content，内容变长会继续增高，需要限高时由调用方补 max-h 与 overflow-y-auto。
  */
 import * as React from 'react'
 import { cn } from 'cn'

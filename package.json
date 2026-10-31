@@ -136,11 +136,6 @@
                     "command": "webianPrompt.refresh",
                     "when": "view == webianPrompt.sidebar",
                     "group": "navigation@2"
-                },
-                {
-                    "command": "webianPrompt.resetPrompts",
-                    "when": "view == webianPrompt.sidebar",
-                    "group": "navigation@3"
                 }
             ]
         },

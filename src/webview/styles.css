@@ -42,6 +42,8 @@ body {
     /* 输入控件边框色：input.border 多数主题未定义，退回 --border，避免与 --muted 背景同色导致边框隐形 */
     --input: var(--vscode-input-border, var(--border));
     --ring: var(--vscode-focusBorder, oklch(0.708 0 0));
+    /* 强调前景色：给「已连接」这类状态图标用。button-background 是为白字设计的底色，当前景色会偏暗 */
+    --info: var(--vscode-textLink-foreground, oklch(0.52 0.105 223.128));
 
     --chart-1: oklch(0.865 0.127 207.078);
     --chart-2: oklch(0.715 0.143 215.221);
@@ -85,6 +87,7 @@ body.dark {
     --border: var(--vscode-panel-border, oklch(1 0 0 / 10%));
     --input: var(--vscode-input-border, var(--border));
     --ring: var(--vscode-focusBorder, oklch(0.556 0 0));
+    --info: var(--vscode-textLink-foreground, oklch(0.715 0.143 215.221));
 
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
@@ -116,6 +119,7 @@ body.dark {
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
+    --color-info: var(--info);
 
     --color-chart-1: var(--chart-1);
     --color-chart-2: var(--chart-2);
@@ -140,6 +144,15 @@ body.dark {
     --font-sans: 'Inter Variable', sans-serif;
     --font-mono: var(--vscode-editor-font-family, ui-monospace, SFMono-Regular, monospace);
     --font-heading: var(--font-sans);
+
+    /* 字号刻度跟随 VSCode 设置：正文与 UI 字号同值，其余档位按比例缩放，
+       避免 shadcn 组件写死的 rem 值在用户调整编辑器字号后与界面脱节 */
+    --text-xs: calc(var(--vscode-font-size, 13px) * 0.85);
+    --text-sm: var(--vscode-font-size, 13px);
+    --text-base: calc(var(--vscode-font-size, 13px) * 1.15);
+    --text-lg: calc(var(--vscode-font-size, 13px) * 1.3);
+    --text-xl: calc(var(--vscode-font-size, 13px) * 1.5);
+    --text-2xl: calc(var(--vscode-font-size, 13px) * 1.85);
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
@@ -205,9 +218,34 @@ select:focus-visible {
     outline-offset: 1px;
 }
 
+/* InputGroup 的焦点表达统一收敛到 border 变色：内部控件不画 outline，容器也不叠加 3px 外环，
+   否则边框与光环叠在一起会形成双层边（组件自带的 focus 环特异性为 (0,3,0)，只能靠 important 覆盖） */
+[data-slot='input-group'] :is(input, textarea):focus-visible {
+    outline: none;
+}
+
+[data-slot='input-group']:focus-within {
+    --tw-ring-shadow: 0 0 #0000 !important;
+}
+
 /* 选中文本与编辑器选区保持一致 */
 ::selection {
     background-color: var(--vscode-editor-selectionBackground, oklch(0.52 0.105 223.128 / 30%));
+}
+
+/* 输入控件按 VSCode 设置取字号：单行输入用 UI 字号，多行正文视作编辑器内容、跟随 editor.fontSize。
+   用元素选择器而非 data-slot 匹配，因为 InputGroup 会把内部控件的 data-slot 覆盖成 input-group-control；
+   规则写在 layer 之外，特异性与层级都高于组件自带的 text-base（那是移动端防缩放的默认值，桌面端不需要） */
+[data-slot='input-group'] input {
+    font-size: var(--vscode-font-size, 13px);
+}
+
+[data-slot='dialog-content'] input {
+    font-size: var(--vscode-font-size, 13px);
+}
+
+[data-slot='dialog-content'] textarea {
+    font-size: var(--vscode-editor-font-size, var(--vscode-font-size, 13px));
 }
 
 /* shadcn preset 的基础层：统一边框色与 outline 色，指针手势由 --pointer 参数开启 */

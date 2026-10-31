@@ -15,7 +15,6 @@ function toDraft(prompt: PromptTemplate): PromptDraft {
     return {
         id: prompt.id,
         label: prompt.label,
-        description: prompt.description,
         prompt: prompt.prompt,
         icon: prompt.icon,
         mode: prompt.mode,

@@ -139,7 +139,7 @@ pnpm run package    # 产出 releases/webian-prompt-0.1.0.vsix
 
 ## 数据存储
 
-提示词存于 `context.globalState` 的 `webianPrompt.templates.v1`，跨工作区共享。读取时做归一化：补齐被删除的内置模板、剔除结构非法的历史数据；内置模板只可改文案、不可删除。
+提示词存于 `context.globalState` 的 `webianPrompt.templates.v1`，跨工作区共享。该键通过 `globalState.setKeysForSync` 登记到 Settings Sync，用户开启同步（Settings 分类）后会在多台设备间共享；扩展状态以键为粒度整体同步、不做逐条合并，多设备同时修改时以 VS Code 的冲突选择为准。读取时做归一化：补齐被删除的内置模板、剔除结构非法的历史数据；内置模板只可改文案、不可删除。
 
 ## 关键约定与已知限制
 

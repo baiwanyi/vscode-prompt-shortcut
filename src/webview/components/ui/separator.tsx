@@ -3,8 +3,6 @@
  * 按 orientation 渲染水平或垂直细线，decorative 为 true 时不参与无障碍树。
  * 注意：需要语义分隔时把 decorative 设为 false 并补充 aria-orientation，不要用 div 加 border 代替。
  */
-'use client'
-
 import * as React from 'react'
 import { cn } from 'cn'
 import { Separator as SeparatorPrimitive } from 'radix-ui'

@@ -8,7 +8,7 @@ import type { PromptTemplate } from '@shared/types'
 
 /** 参与搜索的字段以换行拼接，避免跨字段拼出一个实际不存在的命中 */
 function toSearchableText(prompt: PromptTemplate): string {
-    return `${prompt.label}\n${prompt.description}\n${prompt.prompt}`
+    return `${prompt.label}\n${prompt.prompt}`
 }
 
 /** 筛选结果：items 保持模板原始顺序，isFiltering 表示当前是否处于搜索态 */

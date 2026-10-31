@@ -2,9 +2,11 @@
  * 提示词新增/编辑对话框。
  * 表单用 Field / FieldGroup 组织，校验态经 data-invalid 与 aria-invalid 传给控件，错误文案交给 FieldError；
  * 图标与对话模式都是互斥单选，统一用 ToggleGroup 承载，避免原生 select 在窄面板中展开后被裁切。
+ * 正文用 InputGroup 承载（可留空，留空时由宿主回退为发送名称），字数统计作为 block-end 的 addon。
  * 表单状态完全受控于本组件，提交时只回传 PromptDraft，由宿主完成校验与持久化；
  * 内置模板允许修改文案，但名称之外的结构（id / builtin）由原始数据保留。
- * 注意：draft 变化时必须重置表单，否则会出现「切换编辑对象后仍显示上一条内容」的问题。
+ * 注意：draft 变化时必须重置表单，否则会出现「切换编辑对象后仍显示上一条内容」的问题；
+ * 正文控件自带 field-sizing-content，必须配合 max-h 与 overflow-y-auto 限高，否则长提示词会把对话框顶出视口。
  */
 import { useState } from 'react'
 import { Button } from '@components/ui/button'
@@ -18,7 +20,7 @@ import {
 } from '@components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldTitle } from '@components/ui/field'
 import { Input } from '@components/ui/input'
-import { Textarea } from '@components/ui/textarea'
+import { InputGroup, InputGroupAddon, InputGroupText, InputGroupTextarea } from '@components/ui/input-group'
 import { ToggleGroup, ToggleGroupItem } from '@components/ui/toggle-group'
 import { isPromptIconKey } from '@shared/messages'
 import type { ChatMode, PromptDraft, PromptIconKey } from '@shared/types'
@@ -41,7 +43,6 @@ const MODE_DESCRIPTIONS: Record<ChatMode, string> = {
 
 const EMPTY_DRAFT: PromptDraft = {
     label: '',
-    description: '',
     prompt: '',
     icon: 'sparkles',
     mode: 'craft',
@@ -68,7 +69,6 @@ export function PromptEditorDialog({ open, draft, onOpenChange, onSubmit }: Prom
     }
 
     const isLabelInvalid = isTouched && !form.label.trim()
-    const isPromptInvalid = isTouched && !form.prompt.trim()
 
     const update = <K extends keyof PromptDraft>(key: K, value: PromptDraft[K]): void => {
         setForm((prev) => ({ ...prev, [key]: value }))
@@ -76,13 +76,12 @@ export function PromptEditorDialog({ open, draft, onOpenChange, onSubmit }: Prom
 
     const handleSubmit = (): void => {
         setIsTouched(true)
-        if (!form.label.trim() || !form.prompt.trim()) {
+        if (!form.label.trim()) {
             return
         }
         onSubmit({
             ...form,
             label: form.label.trim(),
-            description: form.description.trim(),
             prompt: form.prompt.trim(),
         })
     }
@@ -97,7 +96,7 @@ export function PromptEditorDialog({ open, draft, onOpenChange, onSubmit }: Prom
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-y-auto px-4 py-3">
+                <div className="flex-1 overflow-y-auto p-0">
                     <FieldGroup className="gap-3">
                         <Field data-invalid={isLabelInvalid}>
                             <FieldLabel htmlFor="prompt-label">名称</FieldLabel>
@@ -110,17 +109,6 @@ export function PromptEditorDialog({ open, draft, onOpenChange, onSubmit }: Prom
                                 onChange={(event) => update('label', event.target.value)}
                             />
                             <FieldError>{isLabelInvalid ? '名称不能为空' : null}</FieldError>
-                        </Field>
-
-                        <Field>
-                            <FieldLabel htmlFor="prompt-description">说明（可选）</FieldLabel>
-                            <Input
-                                id="prompt-description"
-                                value={form.description}
-                                maxLength={120}
-                                placeholder="一句话描述用途，显示在按钮下方"
-                                onChange={(event) => update('description', event.target.value)}
-                            />
                         </Field>
 
                         <Field>
@@ -177,33 +165,32 @@ export function PromptEditorDialog({ open, draft, onOpenChange, onSubmit }: Prom
                             <FieldDescription>{MODE_DESCRIPTIONS[form.mode]}</FieldDescription>
                         </Field>
 
-                        <Field data-invalid={isPromptInvalid}>
-                            <div className="flex items-center justify-between">
-                                <FieldLabel htmlFor="prompt-body">提示词正文</FieldLabel>
-                                <span className="text-xs text-muted-foreground">{form.prompt.length} 字符</span>
-                            </div>
-                            <Textarea
-                                id="prompt-body"
-                                value={form.prompt}
-                                rows={9}
-                                maxLength={8000}
-                                className="font-mono text-xs"
-                                aria-invalid={isPromptInvalid}
-                                placeholder={'例如：\n请按以下顺序推进本次任务……\n不要修改无关文件。'}
-                                onChange={(event) => update('prompt', event.target.value)}
-                            />
-                            <FieldError>{isPromptInvalid ? '提示词正文不能为空' : null}</FieldError>
+                        <Field>
+                            <FieldLabel htmlFor="prompt-body">提示词正文</FieldLabel>
+                            <InputGroup>
+                                <InputGroupTextarea
+                                    id="prompt-body"
+                                    value={form.prompt}
+                                    rows={9}
+                                    maxLength={8000}
+                                    className="max-h-56 overflow-y-auto font-mono placeholder:text-sm"
+                                    placeholder={'例如：\n请按以下顺序推进本次任务……\n不要修改无关文件。'}
+                                    onChange={(event) => update('prompt', event.target.value)}
+                                />
+                                <InputGroupAddon align="block-end" className="justify-end">
+                                    <InputGroupText>{form.prompt.length} 字符</InputGroupText>
+                                </InputGroupAddon>
+                            </InputGroup>
+                            <FieldDescription>留空时只把名称发送给 CodeBuddy。</FieldDescription>
                         </Field>
                     </FieldGroup>
                 </div>
 
                 <DialogFooter>
-                    <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
+                    <Button variant="secondary" onClick={() => onOpenChange(false)}>
                         取消
                     </Button>
-                    <Button size="sm" onClick={handleSubmit}>
-                        保存
-                    </Button>
+                    <Button onClick={handleSubmit}>保存</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

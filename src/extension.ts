@@ -8,7 +8,7 @@
 import * as vscode from 'vscode'
 import { CodeBuddyBridge } from './modules/codebuddy/CodeBuddyBridge'
 import { registerContextActions } from './modules/commands/contextActions'
-import { PromptStore } from './modules/prompt/PromptStore'
+import { PROMPT_STORAGE_KEY, PromptStore } from './modules/prompt/PromptStore'
 import { PromptSidebarProvider } from './modules/views/PromptSidebarProvider'
 import type { BridgeConfig } from './modules/codebuddy/CodeBuddyBridge'
 import type { ChatMode } from './shared/types'
@@ -47,6 +47,8 @@ async function revealSidebar(): Promise<void> {
 }
 
 export function activate(context: vscode.ExtensionContext): void {
+    // 登记同步键：用户开启 Settings Sync 后，提示词随设置一起在多台设备间同步
+    context.globalState.setKeysForSync([PROMPT_STORAGE_KEY])
     const store = new PromptStore(context.globalState)
     const bridge = new CodeBuddyBridge(readBridgeConfig)
     const provider = new PromptSidebarProvider(context.extensionUri, store, bridge)

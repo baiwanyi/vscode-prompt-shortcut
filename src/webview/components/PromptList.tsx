@@ -6,7 +6,9 @@
  */
 import { Info } from 'lucide-react'
 import { useMemo } from 'react'
-import { PromptCard } from '@components/PromptCard'
+import { PromptItem } from '@components/PromptItem'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from '@components/ui/empty'
+import { ItemGroup } from '@components/ui/item'
 import { ScrollArea } from '@components/ui/scroll-area'
 import type { PromptTemplate } from '@shared/types'
 import type { JSX } from 'react'
@@ -21,6 +23,8 @@ interface PromptListProps {
     onCopy: (id: string) => void
     onEdit: (id: string) => void
     onDelete: (id: string) => void
+    /** 仅内置模板可用：把该条恢复为出厂内容 */
+    onRestore: (id: string) => void
     onMove: (id: string, direction: 'up' | 'down') => void
 }
 
@@ -32,6 +36,7 @@ export function PromptList({
     onCopy,
     onEdit,
     onDelete,
+    onRestore,
     onMove,
 }: PromptListProps): JSX.Element {
     const indexById = useMemo(
@@ -40,22 +45,26 @@ export function PromptList({
     )
 
     return (
-        <ScrollArea className="min-h-0 flex-1">
-            <div className="space-y-1.5 p-2">
-                {items.length === 0 ? (
-                    <div className="flex flex-col items-center gap-2 px-3 py-10 text-center">
-                        <Info className="size-5 text-muted-foreground" />
-                        <p className="text-xs text-muted-foreground">
+        <ScrollArea className="min-h-0 flex-1 p-3">
+            {items.length === 0 ? (
+                <Empty className="gap-2 py-8">
+                    <EmptyHeader>
+                        <EmptyMedia variant="icon">
+                            <Info />
+                        </EmptyMedia>
+                        <EmptyDescription>
                             {prompts.length === 0
                                 ? '还没有提示词，点击视图标题栏的 + 新建一条。'
                                 : '没有匹配的提示词。'}
-                        </p>
-                    </div>
-                ) : (
-                    items.map((prompt) => {
+                        </EmptyDescription>
+                    </EmptyHeader>
+                </Empty>
+            ) : (
+                <ItemGroup className="gap-2">
+                    {items.map((prompt) => {
                         const index = indexById.get(prompt.id) ?? -1
                         return (
-                            <PromptCard
+                            <PromptItem
                                 key={prompt.id}
                                 prompt={prompt}
                                 canMoveUp={!isFiltering && index > 0}
@@ -64,12 +73,13 @@ export function PromptList({
                                 onCopy={onCopy}
                                 onEdit={onEdit}
                                 onDelete={onDelete}
+                                onRestore={onRestore}
                                 onMove={onMove}
                             />
                         )
-                    })
-                )}
-            </div>
+                    })}
+                </ItemGroup>
+            )}
         </ScrollArea>
     )
 }

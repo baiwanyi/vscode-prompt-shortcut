@@ -36,8 +36,6 @@ export interface PromptTemplate {
     id: string
     /** 按钮上展示的名称，如「提交到 Git」 */
     label: string
-    /** 一句话说明该提示词的用途 */
-    description: string
     /** 实际发送给 CodeBuddy 的提示词正文 */
     prompt: string
     icon: PromptIconKey
@@ -52,7 +50,6 @@ export interface PromptTemplate {
 export interface PromptDraft {
     id?: string
     label: string
-    description: string
     prompt: string
     icon: PromptIconKey
     mode: ChatMode

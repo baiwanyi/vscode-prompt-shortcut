@@ -1,6 +1,7 @@
 /**
  * 提示词模板的持久化与增删改查。
  * 数据落在扩展全局状态（globalState）而非工作区，确保同一套提示词跨项目复用；
+ * 该键已在 activate 中登记给 Settings Sync，用户开启同步后可在多台设备间共享；
  * 读取时统一做归一化：补齐被删除的内置模板、剔除结构非法的历史数据，避免脏数据进入 Webview。
  * 注意：所有写操作返回最新列表并立即落盘，调用方不要缓存旧引用；内置模板只允许改文案，不允许删除。
  */
@@ -10,9 +11,9 @@ import type * as vscode from 'vscode'
 import { isPromptIconKey } from '../../shared/messages'
 import { isChatMode } from '../../shared/types'
 
-const STORAGE_KEY = 'webianPrompt.templates.v1'
+/** 存储键：既是 globalState 的读写键，也是登记给 Settings Sync 的同步键（见 activate） */
+export const PROMPT_STORAGE_KEY = 'webianPrompt.templates.v1'
 const MAX_LABEL_LENGTH = 40
-const MAX_DESCRIPTION_LENGTH = 120
 const MAX_PROMPT_LENGTH = 8000
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -26,14 +27,14 @@ function normalizeTemplate(raw: unknown, index: number): PromptTemplate | null {
     }
     const label = typeof raw.label === 'string' ? raw.label.trim().slice(0, MAX_LABEL_LENGTH) : ''
     const prompt = typeof raw.prompt === 'string' ? raw.prompt.trim().slice(0, MAX_PROMPT_LENGTH) : ''
-    if (!label || !prompt) {
+    // 正文允许为空：空正文在发送时回退为名称，只有名称缺失才算脏数据
+    if (!label) {
         return null
     }
     const id = typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : `custom-${Date.now()}-${index}`
     return {
         id,
         label,
-        description: typeof raw.description === 'string' ? raw.description.trim().slice(0, MAX_DESCRIPTION_LENGTH) : '',
         prompt,
         icon: isPromptIconKey(raw.icon) ? raw.icon : 'file-text',
         mode: isChatMode(raw.mode) ? raw.mode : 'craft',
@@ -48,7 +49,7 @@ export class PromptStore {
 
     /** 读取并归一化模板列表；内置模板缺失时按内置顺序补回原位 */
     getAll(): PromptTemplate[] {
-        const raw = this.memento.get<unknown>(STORAGE_KEY)
+        const raw = this.memento.get<unknown>(PROMPT_STORAGE_KEY)
         const stored = Array.isArray(raw)
             ? raw
                   .map((item, index) => normalizeTemplate(item, index))
@@ -83,7 +84,6 @@ export class PromptStore {
             list[index] = {
                 ...current,
                 label: draft.label,
-                description: draft.description,
                 prompt: draft.prompt,
                 icon: draft.icon,
                 mode: draft.mode,
@@ -93,7 +93,6 @@ export class PromptStore {
             list.push({
                 id: `custom-${now}`,
                 label: draft.label,
-                description: draft.description,
                 prompt: draft.prompt,
                 icon: draft.icon,
                 mode: draft.mode,
@@ -140,7 +139,19 @@ export class PromptStore {
         return list
     }
 
+    /** 把单条内置模板恢复为出厂定义；id 不属于内置模板时静默返回原列表 */
+    async restoreBuiltin(id: string): Promise<PromptTemplate[]> {
+        const list = this.getAll()
+        const seed = createBuiltinPrompts().find((item) => item.id === id)
+        if (!seed) {
+            return list
+        }
+        const next = list.map((item) => (item.id === id ? seed : item))
+        await this.persist(next)
+        return next
+    }
+
     private async persist(list: PromptTemplate[]): Promise<void> {
-        await this.memento.update(STORAGE_KEY, list)
+        await this.memento.update(PROMPT_STORAGE_KEY, list)
     }
 }

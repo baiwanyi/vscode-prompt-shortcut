@@ -18,7 +18,8 @@ export type WebviewToHostMessage =
       }
     | { type: 'deletePrompt'; id: string }
     | { type: 'movePrompt'; id: string; direction: 'up' | 'down' }
-    | { type: 'resetDefaults' }
+    /** 把单条内置模板恢复为出厂定义 */
+    | { type: 'resetPrompt'; id: string }
 
 /** 宿主 -> Webview */
 export type HostToWebviewMessage =

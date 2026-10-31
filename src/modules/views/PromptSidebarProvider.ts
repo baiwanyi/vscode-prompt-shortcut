@@ -7,13 +7,12 @@
  */
 import * as vscode from 'vscode'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../shared/messages'
-import type { PromptDraft, PromptStatePayload } from '../../shared/types'
+import type { PromptDraft, PromptStatePayload, PromptTemplate } from '../../shared/types'
 import type { CodeBuddyBridge } from '../codebuddy/CodeBuddyBridge'
 import type { PromptStore } from '../prompt/PromptStore'
 import { buildWebviewHtml } from '../common/webviewHtml'
 
 const MAX_LABEL_LENGTH = 40
-const MAX_DESCRIPTION_LENGTH = 120
 const MAX_PROMPT_LENGTH = 8000
 
 /**
@@ -26,7 +25,7 @@ const DETECTION_RETRY_MAX_MS = 15000
 const DETECTION_RETRY_BACKOFF_STEPS = 4
 const DETECTION_RETRY_LIMIT = 30
 
-/** 校验 Webview 提交的草稿，返回错误信息数组（空数组表示通过） */
+/** 校验 Webview 提交的草稿，返回错误信息数组（空数组表示通过）；正文允许为空 */
 function validateDraft(draft: PromptDraft): string[] {
     const errors: string[] = []
     if (!draft.label.trim()) {
@@ -34,15 +33,15 @@ function validateDraft(draft: PromptDraft): string[] {
     } else if (draft.label.length > MAX_LABEL_LENGTH) {
         errors.push(`名称不能超过 ${MAX_LABEL_LENGTH} 个字符`)
     }
-    if (!draft.prompt.trim()) {
-        errors.push('提示词正文不能为空')
-    } else if (draft.prompt.length > MAX_PROMPT_LENGTH) {
+    if (draft.prompt.length > MAX_PROMPT_LENGTH) {
         errors.push(`提示词正文不能超过 ${MAX_PROMPT_LENGTH} 个字符`)
     }
-    if (draft.description.length > MAX_DESCRIPTION_LENGTH) {
-        errors.push(`说明不能超过 ${MAX_DESCRIPTION_LENGTH} 个字符`)
-    }
     return errors
+}
+
+/** 实际发送的文本：正文为空时退回模板名称，让「只发名称」也能作为一条可用提示词 */
+function resolveSendText(template: PromptTemplate): string {
+    return template.prompt.trim() || template.label.trim()
 }
 
 export class PromptSidebarProvider implements vscode.WebviewViewProvider {
@@ -125,6 +124,26 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
         await this.notify('info', '已恢复默认提示词。')
     }
 
+    /** 恢复单条内置模板：先确认再执行，避免顺手点错丢掉已改的正文 */
+    private async restorePromptById(id: string): Promise<void> {
+        const target = this.store.getAll().find((item) => item.id === id)
+        if (!target) {
+            await this.notify('warn', '提示词不存在或已被删除。')
+            return
+        }
+        const confirmed = await vscode.window.showWarningMessage(
+            `将「${target.label}」恢复为默认内容？当前的修改会丢失。`,
+            { modal: true },
+            '恢复',
+        )
+        if (confirmed !== '恢复') {
+            return
+        }
+        await this.store.restoreBuiltin(id)
+        await this.pushState()
+        await this.notify('info', `已恢复「${target.label}」的默认内容。`)
+    }
+
     private async handleMessage(message: WebviewToHostMessage): Promise<void> {
         switch (message.type) {
             case 'ready': {
@@ -150,7 +169,7 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
                     await this.notify('warn', '提示词不存在或已被删除。')
                     break
                 }
-                await vscode.env.clipboard.writeText(target.prompt)
+                await vscode.env.clipboard.writeText(resolveSendText(target))
                 await this.notify('info', `已复制「${target.label}」的提示词。`)
                 break
             }
@@ -186,8 +205,8 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
                 await this.pushState()
                 break
             }
-            case 'resetDefaults': {
-                await this.resetWithConfirm()
+            case 'resetPrompt': {
+                await this.restorePromptById(message.id)
                 break
             }
             default: {
@@ -203,7 +222,7 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
             await this.notify('warn', '提示词不存在或已被删除。')
             return
         }
-        await this.dispatch(target.prompt, target.mode)
+        await this.dispatch(resolveSendText(target), target.mode)
     }
 
     private async dispatch(prompt: string, mode?: PromptDraft['mode']): Promise<void> {
