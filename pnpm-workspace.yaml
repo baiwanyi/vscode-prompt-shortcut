@@ -1,0 +1,6 @@
+# pnpm 12 不再读取 package.json 的 pnpm 字段，构建脚本白名单必须写在这里（字段名为 allowBuilds）。
+# esbuild 需要执行 postinstall 安装平台二进制；vsce-sign 与 keytar 供本地打包签名使用。
+allowBuilds:
+    '@vscode/vsce-sign': true
+    esbuild: true
+    keytar: true

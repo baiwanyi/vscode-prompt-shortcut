@@ -1,0 +1,16 @@
+.vscode/**
+.vscode-test/**
+.codebuddy/**
+src/**
+components.json
+node_modules/**
+scripts/**
+vite.config.mts
+tsconfig.json
+pnpm-lock.yaml
+pnpm-workspace.yaml
+.gitignore
+releases/**
+**/*.map
+**/*.ts
+# 注意：dist/** 必须打进包内，其中 dist/extension.js 是扩展入口，dist/webview 是侧边栏前端产物

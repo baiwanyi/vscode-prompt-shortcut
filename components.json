@@ -1,0 +1,25 @@
+{
+    "$schema": "https://ui.shadcn.com/schema.json",
+    "style": "radix-vega",
+    "rsc": false,
+    "tsx": true,
+    "tailwind": {
+        "config": "",
+        "css": "src/webview/styles.css",
+        "baseColor": "neutral",
+        "cssVariables": true,
+        "prefix": ""
+    },
+    "iconLibrary": "lucide",
+    "rtl": false,
+    "aliases": {
+        "components": "@components",
+        "utils": "@webview/lib/utils",
+        "ui": "@components/ui",
+        "lib": "@webview/lib",
+        "hooks": "@webview/hooks"
+    },
+    "menuColor": "default-translucent",
+    "menuAccent": "subtle",
+    "registries": {}
+}

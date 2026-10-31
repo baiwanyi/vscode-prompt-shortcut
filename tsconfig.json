@@ -1,0 +1,43 @@
+{
+    // 类型检查专用配置：产物由 esbuild（扩展宿主）与 Vite（webview）生成，tsc 不产出文件。
+    // 取值依据 TypeScript 7 官方 --init 模板与破坏性变更清单：baseUrl、moduleResolution: node/classic、
+    // target: es5 等在 7.0 已移除；module: preserve 隐含 moduleResolution: bundler 与 esModuleInterop。
+    "compilerOptions": {
+        // 环境与模块
+        "module": "preserve",
+        "target": "esnext",
+        "lib": ["ESNext", "DOM", "DOM.Iterable"],
+        "jsx": "react-jsx",
+        "moduleDetection": "force",
+        "verbatimModuleSyntax": true,
+        "isolatedModules": true,
+        "resolveJsonModule": true,
+        "noEmit": true,
+        "skipLibCheck": true,
+        // 扩展宿主依赖 vscode 与 node 类型；webview 的 CSS 副作用导入依赖 vite/client 的模块声明，
+        // 显式列出可避免隐式加载其他 @types 包带来的全局污染
+        "types": ["node", "vscode", "vite/client"],
+        // 严格度：TS7 推荐项 + 本项目约束
+        // 较参考配置额外启用两个未使用检查：本项目代码已定型，留着可及时暴露死代码与未接线的参数
+        "strict": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noUncheckedIndexedAccess": true,
+        "noUncheckedSideEffectImports": true,
+        "noImplicitOverride": true,
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitReturns": true,
+        // 路径别名：TS7 已移除 baseUrl，paths 相对本文件所在目录解析
+        // @components 指向 ui 基础组件与业务卡片组件，@webview 指向前端其余源码（App、hooks、lib、样式），
+        // @shared 指向宿主与 webview 共用的类型与消息协议，三者边界不可混用
+        "paths": {
+            "@components/*": ["./src/webview/components/*"],
+            "@shared/*": ["./src/shared/*"],
+            "@webview/*": ["./src/webview/*"]
+        }
+    },
+    // src 覆盖扩展宿主（extension）、webview 与共享层（shared），三处都必须参与类型校验；
+    // vite.config.mts 一并纳入，保证构建配置本身也不会因 API 变更而失配；
+    // resources 只含 svg 资源，scripts 只含 mjs 构建脚本，均不在检查范围
+    "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.mts"]
+}

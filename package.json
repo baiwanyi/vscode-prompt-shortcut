@@ -1,0 +1,193 @@
+{
+    "$schema": "https://json.schemastore.org/package.json",
+    "name": "webian-prompt",
+    "displayName": "微边提示词",
+    "description": "AI 提示词管理器：一键把预设提示词发送到 CodeBuddy 对话，并支持从编辑器右键调用 CodeBuddy 修复与审查。",
+    "version": "0.1.0",
+    "publisher": "webian",
+    "license": "MIT",
+    "private": true,
+    "engines": {
+        "vscode": "^1.144.0"
+    },
+    "categories": [
+        "Other",
+        "Machine Learning"
+    ],
+    "keywords": [
+        "ai",
+        "prompt",
+        "codebuddy",
+        "prompt-manager"
+    ],
+    "main": "./dist/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "webianPrompt.openSidebar",
+                "title": "打开提示词面板",
+                "category": "微边提示词",
+                "icon": "$(list-unordered)"
+            },
+            {
+                "command": "webianPrompt.newPrompt",
+                "title": "新建提示词模板",
+                "category": "微边提示词",
+                "icon": "$(add)"
+            },
+            {
+                "command": "webianPrompt.resetPrompts",
+                "title": "恢复默认提示词",
+                "category": "微边提示词"
+            },
+            {
+                "command": "webianPrompt.fixWithCodeBuddy",
+                "title": "使用 CodeBuddy 修复",
+                "category": "微边代码"
+            },
+            {
+                "command": "webianPrompt.reviewWithCodeBuddy",
+                "title": "使用 CodeBuddy 审查",
+                "category": "微边代码"
+            }
+        ],
+        "submenus": [
+            {
+                "id": "webianPrompt.editorContext",
+                "label": "微边代码",
+                "icon": "resources/icon.svg"
+            }
+        ],
+        "menus": {
+            "view/title": [
+                {
+                    "command": "webianPrompt.newPrompt",
+                    "when": "view == webianPrompt.sidebar",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "webianPrompt.resetPrompts",
+                    "when": "view == webianPrompt.sidebar",
+                    "group": "1_settings@1"
+                }
+            ],
+            "editor/context": [
+                {
+                    "submenu": "webianPrompt.editorContext",
+                    "when": "editorTextFocus",
+                    "group": "1_webian@1"
+                }
+            ],
+            "webianPrompt.editorContext": [
+                {
+                    "command": "webianPrompt.fixWithCodeBuddy",
+                    "group": "1_fix@1"
+                },
+                {
+                    "command": "webianPrompt.reviewWithCodeBuddy",
+                    "group": "2_review@1"
+                }
+            ],
+            "explorer/context": [
+                {
+                    "command": "webianPrompt.fixWithCodeBuddy",
+                    "when": "resourceScheme == file && !explorerResourceIsFolder",
+                    "group": "1_webian@1"
+                },
+                {
+                    "command": "webianPrompt.reviewWithCodeBuddy",
+                    "when": "resourceScheme == file && !explorerResourceIsFolder",
+                    "group": "1_webian@2"
+                }
+            ]
+        },
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "webianPrompt",
+                    "title": "微边提示词",
+                    "icon": "resources/icon.svg"
+                }
+            ]
+        },
+        "views": {
+            "webianPrompt": [
+                {
+                    "type": "webview",
+                    "id": "webianPrompt.sidebar",
+                    "name": "提示词",
+                    "icon": "resources/icon.svg",
+                    "contextualTitle": "微边提示词"
+                }
+            ]
+        },
+        "configuration": {
+            "title": "微边提示词",
+            "properties": {
+                "webianPrompt.codebuddy.sendCommand": {
+                    "type": "string",
+                    "default": "tencentcloud.codingcopilot.sendToChat",
+                    "markdownDescription": "把提示词发送到 CodeBuddy 对话所调用的命令 ID。默认使用 CodeBuddy 内置的 `sendToChat`（新建对话并自动发送）。若目标版本变更，可在此改为自定义命令。"
+                },
+                "webianPrompt.codebuddy.mode": {
+                    "type": "string",
+                    "enum": [
+                        "craft",
+                        "ask",
+                        "plan",
+                        "debug"
+                    ],
+                    "default": "craft",
+                    "markdownDescription": "发送提示词时使用的 CodeBuddy 对话模式。"
+                },
+                "webianPrompt.codebuddy.autoSend": {
+                    "type": "boolean",
+                    "default": true,
+                    "markdownDescription": "点击提示词后是否直接触发发送。关闭后仅将文本写入剪贴板并聚焦 CodeBuddy 对话框，由你手动粘贴发送。"
+                },
+                "webianPrompt.codebuddy.fallbackToClipboard": {
+                    "type": "boolean",
+                    "default": true,
+                    "markdownDescription": "当未检测到 CodeBuddy 扩展时，是否退化为「写入剪贴板 + 提示」。"
+                }
+            }
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "pnpm run build",
+        "dev": "pnpm run build && pnpm run watch",
+        "build": "pnpm run build:webview && pnpm run build:extension",
+        "build:webview": "vite build",
+        "build:extension": "node scripts/esbuild.mjs",
+        "watch": "concurrently -k -n webview,ext -c cyan,magenta \"vite build --watch\" \"node scripts/esbuild.mjs --watch\"",
+        "typecheck": "tsc --noEmit -p tsconfig.json",
+        "check": "pnpm run typecheck && pnpm run build",
+        "package": "pnpm run build && vsce package --no-dependencies --out releases/"
+    },
+    "devDependencies": {
+        "@radix-ui/react-dialog": "^1.3.1",
+        "@radix-ui/react-label": "^2.1.17",
+        "@radix-ui/react-scroll-area": "^1.4.0",
+        "@radix-ui/react-slot": "^1.5.0",
+        "@tailwindcss/vite": "^4.3.3",
+        "@types/node": "^26.6.6",
+        "@types/react": "^19.3.0",
+        "@types/react-dom": "^19.3.0",
+        "@types/vscode": "1.144.0",
+        "@vitejs/plugin-react": "^6.1.2",
+        "@vscode/vsce": "^4.1.0",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
+        "concurrently": "^10.0.6",
+        "esbuild": "^0.28.2",
+        "lucide-react": "^1.65.0",
+        "radix-ui": "^1.8.1",
+        "react": "^19.3.1",
+        "react-dom": "^19.3.1",
+        "tailwind-merge": "^3.7.0",
+        "tailwindcss": "^4.3.3",
+        "tw-animate-css": "^1.4.0",
+        "typescript": "^7.0.2",
+        "vite": "^8.3.5"
+    }
+}

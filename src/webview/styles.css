@@ -1,0 +1,286 @@
+/**
+ * Webview 全局样式与设计令牌。
+ * 令牌取自 shadcn/ui 标准调色板，但每个颜色都优先绑定 vscode 主题变量，oklch 数值仅作为
+ * 变量缺失（如脱离 VSCode 预览）时的回落值，因此面板外观始终跟随编辑器主题而非系统明暗。
+ * 主题块以 inline 模式声明，让 bg-background 之类的工具类直接展开为 var(--background)，
+ * 避免多一层变量间接，这样在 body 上覆写的令牌才能被所有子元素继承。
+ * 注意：暗色分支同时兼容 VSCode 的 data-vscode-theme-kind 属性与 shadcn 约定的 .dark 类。
+ * 另注意：本文件注释中禁止写出完整的 at-rule 关键字（主题块、导入语句的写法），
+ * 否则 Tailwind 语言服务会把注释内容当成真实指令解析，从该处起整篇报 css-lcurlyexpected。
+ */
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark {
+    &:where(
+        .dark,
+        .dark *,
+        [data-vscode-theme-kind='vscode-dark'],
+        [data-vscode-theme-kind='vscode-dark'] *
+    ) {
+        @slot;
+    }
+}
+
+:root,
+body {
+    color-scheme: light;
+
+    --background: var(--vscode-sideBar-background, oklch(1 0 0));
+    --foreground: var(--vscode-sideBar-foreground, oklch(0.145 0 0));
+    --card: var(--vscode-editorWidget-background, oklch(1 0 0));
+    --card-foreground: var(--vscode-editorWidget-foreground, oklch(0.145 0 0));
+    --popover: var(--vscode-editorWidget-background, oklch(1 0 0));
+    --popover-foreground: var(
+        --vscode-editorWidget-foreground,
+        oklch(0.145 0 0)
+    );
+    --primary: var(--vscode-button-background, oklch(0.52 0.105 223.128));
+    --primary-foreground: var(
+        --vscode-button-foreground,
+        oklch(0.984 0.019 200.873)
+    );
+    --secondary: var(
+        --vscode-button-secondaryBackground,
+        oklch(0.967 0.001 286.375)
+    );
+    --secondary-foreground: var(
+        --vscode-button-secondaryForeground,
+        oklch(0.21 0.006 285.885)
+    );
+    --muted: var(--vscode-input-background, oklch(0.97 0 0));
+    --muted-foreground: var(--vscode-descriptionForeground, oklch(0.556 0 0));
+    --accent: var(--vscode-list-hoverBackground, oklch(0.97 0 0));
+    --accent-foreground: var(--vscode-list-hoverForeground, oklch(0.205 0 0));
+    --destructive: var(
+        --vscode-inputValidation-errorBorder,
+        oklch(0.577 0.245 27.325)
+    );
+    /* 相对 shadcn 标准的扩展项：VSCode 的错误文字色，比 --destructive 更适合做前景色 */
+    --destructive-foreground: var(
+        --vscode-errorForeground,
+        oklch(0.577 0.245 27.325)
+    );
+    --border: var(--vscode-panel-border, oklch(0.922 0 0));
+    /* 输入控件边框色：input.border 多数主题未定义，退回 --border，避免与 --muted 背景同色导致边框隐形 */
+    --input: var(--vscode-input-border, var(--border));
+    --ring: var(--vscode-focusBorder, oklch(0.708 0 0));
+
+    --chart-1: oklch(0.865 0.127 207.078);
+    --chart-2: oklch(0.715 0.143 215.221);
+    --chart-3: oklch(0.609 0.126 221.723);
+    --chart-4: oklch(0.52 0.105 223.128);
+    --chart-5: oklch(0.45 0.085 224.283);
+
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: oklch(0.609 0.126 221.723);
+    --sidebar-primary-foreground: oklch(0.984 0.019 200.873);
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.708 0 0);
+
+    --radius: var(--vscode-cornerRadius, 0.625rem);
+}
+
+body[data-vscode-theme-kind='vscode-dark'],
+body[data-vscode-theme-kind='vscode-high-contrast'],
+body.dark {
+    color-scheme: dark;
+
+    --background: var(--vscode-sideBar-background, oklch(0.145 0 0));
+    --foreground: var(--vscode-sideBar-foreground, oklch(0.985 0 0));
+    --card: var(--vscode-editorWidget-background, oklch(0.205 0 0));
+    --card-foreground: var(--vscode-editorWidget-foreground, oklch(0.985 0 0));
+    --popover: var(--vscode-editorWidget-background, oklch(0.205 0 0));
+    --popover-foreground: var(
+        --vscode-editorWidget-foreground,
+        oklch(0.985 0 0)
+    );
+    --primary: var(--vscode-button-background, oklch(0.45 0.085 224.283));
+    --primary-foreground: var(
+        --vscode-button-foreground,
+        oklch(0.984 0.019 200.873)
+    );
+    --secondary: var(
+        --vscode-button-secondaryBackground,
+        oklch(0.274 0.006 286.033)
+    );
+    --secondary-foreground: var(
+        --vscode-button-secondaryForeground,
+        oklch(0.985 0 0)
+    );
+    --muted: var(--vscode-input-background, oklch(0.269 0 0));
+    --muted-foreground: var(--vscode-descriptionForeground, oklch(0.708 0 0));
+    --accent: var(--vscode-list-hoverBackground, oklch(0.269 0 0));
+    --accent-foreground: var(--vscode-list-hoverForeground, oklch(0.985 0 0));
+    --destructive: var(
+        --vscode-inputValidation-errorBorder,
+        oklch(0.704 0.191 22.216)
+    );
+    --destructive-foreground: var(
+        --vscode-errorForeground,
+        oklch(0.704 0.191 22.216)
+    );
+    --border: var(--vscode-panel-border, oklch(1 0 0 / 10%));
+    --input: var(--vscode-input-border, var(--border));
+    --ring: var(--vscode-focusBorder, oklch(0.556 0 0));
+
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.715 0.143 215.221);
+    --sidebar-primary-foreground: oklch(0.302 0.056 229.695);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+}
+
+@theme inline {
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+
+    --font-sans: 'Inter Variable', sans-serif;
+    --font-mono: var(
+        --vscode-editor-font-family,
+        ui-monospace,
+        SFMono-Regular,
+        monospace
+    );
+    --font-heading: var(--font-sans);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--vscode-font-family, system-ui, sans-serif);
+    font-size: var(--vscode-font-size, 13px);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    accent-color: var(--primary);
+}
+
+#root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* Radix ScrollArea 自带滚动条，必须屏蔽 viewport 的原生滚动条，否则 Windows 下会出现双条叠加 */
+[data-radix-scroll-area-viewport] {
+    scrollbar-width: none;
+}
+
+[data-radix-scroll-area-viewport]::-webkit-scrollbar {
+    display: none;
+}
+
+/* 滚动条与编辑器保持一致 */
+*::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+    background-color: var(
+        --vscode-scrollbarSlider-background,
+        oklch(0.7 0 0 / 40%)
+    );
+    border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background-color: var(
+        --vscode-scrollbarSlider-hoverBackground,
+        oklch(0.6 0 0 / 70%)
+    );
+}
+
+*::-webkit-scrollbar-track {
+    background-color: transparent;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+    outline: 1px solid var(--ring);
+    outline-offset: 1px;
+}
+
+/* 选中文本与编辑器选区保持一致 */
+::selection {
+    background-color: var(
+        --vscode-editor-selectionBackground,
+        oklch(0.52 0.105 223.128 / 30%)
+    );
+}
+
+/* shadcn preset 的基础层：统一边框色与 outline 色，指针手势由 --pointer 参数开启 */
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+
+    body {
+        @apply bg-background text-foreground;
+    }
+
+    button:not(:disabled),
+    [role='button']:not(:disabled) {
+        cursor: pointer;
+    }
+
+    html {
+        @apply font-sans;
+    }
+}
