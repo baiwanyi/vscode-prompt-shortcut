@@ -1,0 +1,10 @@
+# 统一换行符：仓库与工作区一律 LF，避免 Windows 下 core.autocrlf 造成的伪改动与警告
+* text=auto eol=lf
+
+# 二进制文件不做换行符转换，防止损坏
+*.vsix binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
