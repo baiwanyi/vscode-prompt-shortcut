@@ -44,7 +44,7 @@ export function PromptEditorDialog({ open, draft, onOpenChange, onSubmit }: Prom
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="p-1">
+            <DialogContent showCloseButton={false} className="px-2 py-4">
                 <DialogHeader>
                     <DialogTitle>{draft?.id ? '编辑提示词' : '新建提示词'}</DialogTitle>
                     <DialogDescription>
