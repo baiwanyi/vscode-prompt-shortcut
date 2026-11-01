@@ -211,7 +211,11 @@ pnpm run compile
 pnpm run release
 ```
 
-脚本会校验工作区是否干净、tag 是否已被占用，再依次执行 `pnpm run package`、推送分支与 `v*` tag、`gh release create` 上传 vsix。它不改 `update.json`，发布成功后仍需手动把版本号与下载地址同步过去并提交。
+脚本会校验工作区是否干净、tag 是否指向 HEAD、同名 Release 是否已存在，再依次执行 `pnpm run package`、推送分支与 `v*` tag、`gh release create` 上传 vsix。
+
+Release notes 由上一个 tag 到当前 tag 的提交标题生成：按 Conventional Commits 前缀分组为「新功能 / 修复 / 性能 / 重构 / 文档 / 测试 / 构建 / 持续集成 / 其他」，描述沿用提交里的原文；发布流程自身的 `chore` 提交（发布版本、更新版本清单）会被跳过，区间内没有可归类提交时回退到 GitHub 自动生成。
+
+脚本不改 `update.json`，发布成功后仍需手动同步版本号并提交。
 
 ## 项目结构
 

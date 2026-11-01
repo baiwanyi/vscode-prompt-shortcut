@@ -1,13 +1,15 @@
 /**
- * 发布到 GitHub Release：打包 vsix、推送 tag，再调用 gh 创建带附件的 Release。
+ * 发布到 GitHub Release：整理提交记录、打包 vsix、推送 tag，再调用 gh 创建带附件的 Release。
  * 用 Node 脚本而非 npm script 串联，避免 cmd 与 bash 对 $npm_package_version 的展开差异；
- * 发布前校验工作区是否干净、tag 是否已被占用，防止把未提交的代码打进包或覆盖已有版本。
- * 注意：需要先完成 gh auth login；脚本不会改 update.json，发布后要手动同步版本与下载地址。
+ * 发布前校验工作区是否干净、tag 是否指向 HEAD、Release 是否已存在，防止把未提交的代码打进包或覆盖已有版本。
+ * 注意：需要先完成 gh auth login；脚本不会改 update.json，发布后要手动同步版本号。
  */
 import { execSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { buildReleaseNotes } from './release-notes.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const ALLOW_DIRTY = process.argv.includes('--allow-dirty')
@@ -26,6 +28,20 @@ function capture(command) {
 function fail(message) {
     console.error(`✗ ${message}`)
     process.exit(1)
+}
+
+/** 上一个 tag：按版本倒序取第一个非当前 tag，没有就返回空串（表示取全部历史） */
+function findPreviousTag(currentTag) {
+    const tags = capture('git tag --sort=-v:refname')
+        .split(/\r?\n/u)
+        .filter((item) => item && item !== currentTag)
+    return tags[0] ?? ''
+}
+
+/** 收集区间内的提交标题，交由 release-notes 分组 */
+function collectSubjects(previousTag, currentTag) {
+    const range = previousTag ? `${previousTag}..${currentTag}` : currentTag
+    return capture(`git log ${range} --pretty=format:%s`).split(/\r?\n/u)
 }
 
 const manifest = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
@@ -80,8 +96,24 @@ if (!tagExists) {
 }
 run(`git push origin ${tag}`)
 
+const previousTag = findPreviousTag(tag)
+const notes = buildReleaseNotes(collectSubjects(previousTag, tag))
+const notesPath = join(tmpdir(), `webian-release-notes-${version}.md`)
+if (notes) {
+    writeFileSync(notesPath, notes, 'utf8')
+}
+
 console.log(`→ 创建 GitHub Release ${tag}`)
-run(`gh release create ${tag} "${vsix}" --title "${tag}" --generate-notes`)
+try {
+    // 有整理好的正文就用文件传入，避免长文本与引号在命令行里转义出错；空历史时退回 GitHub 自动生成
+    run(
+        `gh release create ${tag} "${vsix}" --title "${tag}" ${notes ? `--notes-file "${notesPath}"` : '--generate-notes'}`,
+    )
+} finally {
+    if (notes) {
+        unlinkSync(notesPath)
+    }
+}
 
 console.log(`\n✓ 已发布 ${tag}`)
-console.log(`下一步：把 update.json 的 version 改为 ${version}，url 指向本次 Release，然后提交推送。`)
+console.log(`下一步：把 update.json 的 version 改为 ${version} 并提交，url 保持 releases/latest 即可。`)
