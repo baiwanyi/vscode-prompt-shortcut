@@ -42,14 +42,24 @@ if (dirty && !ALLOW_DIRTY) {
     fail(`工作区有未提交的改动，先提交，或加 --allow-dirty 跳过检查：\n${dirty}`)
 }
 
-if (capture(`git tag --list ${tag}`)) {
-    fail(`tag ${tag} 已存在，先删掉旧 tag 或先升版本号`)
+const headCommit = capture('git rev-parse HEAD')
+const tagExists = Boolean(capture(`git tag --list ${tag}`))
+// tag 已存在时只允许指向当前 HEAD：否则发布会把旧提交打包进新版本
+if (tagExists && capture(`git rev-parse ${tag}`) !== headCommit) {
+    fail(`tag ${tag} 已存在但不指向当前 HEAD，先删掉旧 tag 或升版本号`)
 }
 
 try {
     capture('gh auth status')
 } catch {
     fail('gh 未认证，先执行 gh auth login')
+}
+
+try {
+    capture(`gh release view ${tag}`)
+    fail(`Release ${tag} 已存在，如需替换先执行 gh release delete ${tag}`)
+} catch {
+    // 查不到即为预期状态：该 tag 还没有 Release
 }
 
 const branch = capture('git rev-parse --abbrev-ref HEAD')
@@ -65,7 +75,9 @@ if (!existsSync(join(ROOT, vsix))) {
 
 console.log(`→ 推送分支与 tag`)
 run(`git push origin ${branch}`)
-run(`git tag ${tag}`)
+if (!tagExists) {
+    run(`git tag ${tag}`)
+}
 run(`git push origin ${tag}`)
 
 console.log(`→ 创建 GitHub Release ${tag}`)
