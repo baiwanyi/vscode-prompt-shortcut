@@ -97,7 +97,7 @@
                 {
                     "submenu": "baiwanyi.prompt.editorContext",
                     "when": "editorTextFocus",
-                    "group": "navigation@1"
+                    "group": "o_quickcommand@1"
                 }
             ],
             "explorer/context": [
