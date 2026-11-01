@@ -61,28 +61,33 @@
             },
             {
                 "command": "baiwanyi.prompt.fixWithCodeBuddy",
-                "title": "修复",
-                "category": "提示词快捷方式"
+                "title": "修复缺陷",
+                "category": "提示词快捷方式",
+                "icon": "$(wrench)"
             },
             {
                 "command": "baiwanyi.prompt.reviewWithCodeBuddy",
-                "title": "审查",
-                "category": "提示词快捷方式"
+                "title": "审查代码",
+                "category": "提示词快捷方式",
+                "icon": "$(shield)"
             },
             {
                 "command": "baiwanyi.prompt.optimizeWithCodeBuddy",
-                "title": "优化",
-                "category": "提示词快捷方式"
+                "title": "优化实现",
+                "category": "提示词快捷方式",
+                "icon": "$(zap)"
             },
             {
                 "command": "baiwanyi.prompt.styleWithCodeBuddy",
-                "title": "规范",
-                "category": "提示词快捷方式"
+                "title": "规范风格",
+                "category": "提示词快捷方式",
+                "icon": "$(checklist)"
             },
             {
                 "command": "baiwanyi.prompt.refactorWithCodeBuddy",
-                "title": "重构",
-                "category": "提示词快捷方式"
+                "title": "重构结构",
+                "category": "提示词快捷方式",
+                "icon": "$(symbol-structure)"
             }
         ],
         "submenus": [
@@ -110,23 +115,23 @@
             "baiwanyi.prompt.editorContext": [
                 {
                     "command": "baiwanyi.prompt.fixWithCodeBuddy",
-                    "group": "1_quickcommand@1"
+                    "group": "1_quality@1"
                 },
                 {
                     "command": "baiwanyi.prompt.reviewWithCodeBuddy",
-                    "group": "1_quickcommand@2"
+                    "group": "1_quality@2"
                 },
                 {
                     "command": "baiwanyi.prompt.optimizeWithCodeBuddy",
-                    "group": "1_quickcommand@3"
+                    "group": "1_quality@3"
                 },
                 {
                     "command": "baiwanyi.prompt.styleWithCodeBuddy",
-                    "group": "1_quickcommand@4"
+                    "group": "1_quality@4"
                 },
                 {
                     "command": "baiwanyi.prompt.refactorWithCodeBuddy",
-                    "group": "1_quickcommand@5"
+                    "group": "2_structure@1"
                 }
             ],
             "view/title": [
