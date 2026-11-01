@@ -87,7 +87,7 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
         this.enqueueAfterReady({
             type: 'notify',
             level: 'info',
-            message: `设置同步已就绪，共 ${this.store.getAll().length} 条提示词参与了 Settings Sync。`,
+            message: `设置同步已就绪，共 ${this.store.getAll().length} 条提示词同步成功。`,
         })
     }
 

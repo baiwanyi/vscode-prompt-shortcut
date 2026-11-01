@@ -149,6 +149,7 @@ pnpm run compile   # tsc --noEmit + esbuild + vite build
 | `pnpm run verify` | 类型检查 + ESLint + Prettier 格式校验 |
 | `pnpm run package` | 编译、输出 VSIX 到 `releases/` 并安装到本机（`--no-install` 可跳过安装） |
 | `pnpm run release` | 打包、推 tag 并发布到 GitHub Release（需 `gh auth login`） |
+| `pnpm run market` | 把 `releases/` 里当前版本的 vsix 上架市场（需 `vsce login` 或 `VSCE_PAT`） |
 
 -----
 

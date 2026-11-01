@@ -121,4 +121,4 @@ try {
 }
 
 console.log(`\n✓ 已发布 ${tag}`)
-console.log(`下一步：pnpm exec vsce publish --packagePath ${vsix} --no-dependencies 上架市场，此后由市场自动推送更新。`)
+console.log('下一步：pnpm run market 上架市场，此后由市场自动推送更新。')
