@@ -35,7 +35,9 @@ body {
     --muted-foreground: var(--vscode-descriptionForeground, oklch(0.556 0 0));
     --accent: var(--vscode-list-hoverBackground, oklch(0.97 0 0));
     --accent-foreground: var(--vscode-list-hoverForeground, oklch(0.205 0 0));
-    --destructive: var(--vscode-inputValidation-errorBorder, oklch(0.577 0.245 27.325));
+    /* destructive 固定采用 shadcn 默认红，不跟着 VSCode 走：inputValidation.errorBorder 是「输入框边框」语义，
+       深色主题下偏暗，当作文字前景和 10% 叠底会明显发灰，与 shadcn 组件的观感对不上 */
+    --destructive: oklch(0.577 0.245 27.325);
     /* 相对 shadcn 标准的扩展项：VSCode 的错误文字色，比 --destructive 更适合做前景色 */
     --destructive-foreground: var(--vscode-errorForeground, oklch(0.577 0.245 27.325));
     --border: var(--vscode-panel-border, oklch(0.922 0 0));
@@ -68,7 +70,8 @@ html.dark body {
     --muted-foreground: var(--vscode-descriptionForeground, oklch(0.708 0 0));
     --accent: var(--vscode-list-hoverBackground, oklch(0.269 0 0));
     --accent-foreground: var(--vscode-list-hoverForeground, oklch(0.985 0 0));
-    --destructive: var(--vscode-inputValidation-errorBorder, oklch(0.704 0.191 22.216));
+    /* 深色下取 shadcn 的亮红，理由同浅色：边框色做前景过暗 */
+    --destructive: oklch(0.704 0.191 22.216);
     --destructive-foreground: var(--vscode-errorForeground, oklch(0.704 0.191 22.216));
     --border: var(--vscode-panel-border, oklch(1 0 0 / 10%));
     --input: var(--vscode-input-border, var(--border));

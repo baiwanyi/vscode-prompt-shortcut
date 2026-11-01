@@ -3,7 +3,7 @@
     "name": "prompt-shortcut",
     "displayName": "Prompt Shortcut for VSCode",
     "description": "CodeBuddy 代码开发提示词快捷方式",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "publisher": "Baiwanyi",
     "license": "MIT",
     "repository": {

@@ -20,7 +20,7 @@
 | 🖱️ 快捷命令 | 编辑器/资源管理器右键「快捷命令」，提示词由扩展内部拼装，不依赖斜杠指令 |
 | 📍 自动描述 | 动作提示词自动带上工作区相对路径与行号，如 `example.ts（第 12-30 行）` |
 | 🎛️ 分级降级 | 复用会话 → 新建会话 → 写剪贴板，逐级回退并以 toast 告知结果 |
-| 🧩 预设模板 | 首次安装写入常用模板，与自建模板一样可编辑、可删除 |
+| 🧩 预设模板 | 首次安装写入常用模板，方便快速上手 |
 | 💾 数据同步 | 数据存于扩展全局状态并参与 Settings Sync；整份列表上限 512 KB，编辑器内实时显示用量 |
 
 -----
@@ -82,7 +82,7 @@ code --install-extension releases/prompt-shortcut-<version>.vsix
 
 ## 📖 预设提示词
 
-首次安装会写入五条预设模板，用于快速上手；**它们与自建模板完全等价**，可编辑、可排序、可删除，删空后也不会再自动补回。正文为空时以名称作为提示词发送。
+首次安装会写入五条预设模板，用于快速上手，正文为空时以名称作为提示词发送。
 
 | 名称 | 图标 | 模式 | 默认正文 |
 | --- | --- | --- | --- |
@@ -93,8 +93,6 @@ code --install-extension releases/prompt-shortcut-<version>.vsix
 | 排查遗留代码 | shieldCheck | `ask` | 完整评估指令（孤儿代码、死代码、旧代码残留） |
 
 模式说明：`craft` 直接动手实现，`ask` 只回答不改文件，`plan` 先出方案。
-
-预设正文与右键快捷命令的提示词都以 Markdown 形式外置：预设见 `resources/prompts.md`，快捷命令见 `resources/actions.md`，改完重新打包即可生效。
 
 -----
 
@@ -130,8 +128,8 @@ code --install-extension releases/prompt-shortcut-<version>.vsix
 | 层 | 选型 |
 | --- | --- |
 | 语言 | TypeScript 7 |
-| 扩展宿主 | esbuild 打包为 CommonJS 单文件，`target: node20`（Node.js ≥ 20） |
 | 前端 | React 19 + Vite + Tailwind CSS 4，组件用 shadcn/ui，图标 lucide-react |
+| 扩展宿主 | esbuild 打包为 CommonJS 单文件，`target: node20`（Node.js ≥ 20） |
 | 质量与打包 | ESLint + Prettier 校验，@vscode/vsce 打包发布，pnpm 管理依赖 |
 
 -----
