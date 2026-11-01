@@ -13,6 +13,7 @@ import type { PromptDraft, PromptStatePayload, PromptTemplate } from '../../shar
 import type { CodeBuddyBridge } from '../codebuddy/CodeBuddyBridge'
 import type { PromptStore } from '../prompt/PromptStore'
 import { describeError } from '../../shared/errors'
+import { checkCapacity, measurePromptsBytes } from '../../shared/promptCapacity'
 import { CodeBuddyAvailabilityPoller } from '../codebuddy/CodeBuddyAvailabilityPoller'
 import { dispatchPrompt } from '../codebuddy/dispatchPrompt'
 import { confirmAction } from '../common/confirm'
@@ -184,7 +185,7 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
         await this.messenger.notify('info', `已复制「${target.label}」的提示词。`)
     }
 
-    /** 保存草稿：先收敛不可信载荷，再走业务校验，最后区分「新增 / 更新」提示 */
+    /** 保存草稿：先收敛不可信载荷，再走字段与容量校验，最后区分「新增 / 更新」提示 */
     private async savePrompt(raw: unknown): Promise<void> {
         const draft = parseDraft(raw)
         if (!draft) {
@@ -196,7 +197,13 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
             await this.messenger.notify('error', errors.join('；'))
             return
         }
-        const isExisting = draft.id !== undefined && this.store.get(draft.id) !== undefined
+        const list = this.store.getAll()
+        const isExisting = draft.id !== undefined && list.some((item) => item.id === draft.id)
+        const capacityError = checkCapacity(list, draft)
+        if (capacityError) {
+            await this.messenger.notify('error', capacityError)
+            return
+        }
         await this.store.save(draft)
         await this.pushState()
         await this.messenger.notify('info', isExisting ? '提示词已更新。' : '提示词已创建。')
@@ -242,8 +249,11 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
         if (!this.messenger.hasView) {
             return
         }
+        const prompts = this.store.getAll()
         const payload: PromptStatePayload = {
-            prompts: this.store.getAll(),
+            prompts,
+            // 用量与保存校验共用 shared/promptCapacity，界面展示的数字与实际拦截口径一致
+            usedBytes: measurePromptsBytes(prompts),
             // 可用性与 autoSend 由 bridge 统一给出，Provider 不再直接触碰配置键
             codebuddy: this.bridge.getStatus(commandId !== ''),
         }

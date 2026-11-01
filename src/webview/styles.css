@@ -200,7 +200,7 @@ body {
     background-color: var(--vscode-editor-selectionBackground, oklch(0.52 0.105 223.128 / 30%));
 }
 
-/* 输入控件按 VSCode 设置取字号：单行输入用 UI 字号，多行正文视作编辑器内容、跟随 editor.fontSize。
+/* 输入控件按 VSCode 设置取字号：单行输入用 UI 字号，多行正文取最小档 --text-xs（同样随 UI 字号缩放）。
    用元素选择器而非 data-slot 匹配，因为 InputGroup 会把内部控件的 data-slot 覆盖成 input-group-control；
    规则写在 layer 之外，特异性与层级都高于组件自带的 text-base（那是移动端防缩放的默认值，桌面端不需要） */
 [data-slot='input-group'] input {
@@ -212,7 +212,7 @@ body {
 }
 
 [data-slot='dialog-content'] textarea {
-    font-size: var(--vscode-editor-font-size, var(--vscode-font-size, 13px));
+    font-size: var(--text-xs);
 }
 
 /* shadcn preset 的基础层：统一边框色与 outline 色，指针手势由 --pointer 参数开启 */

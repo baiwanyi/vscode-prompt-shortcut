@@ -109,6 +109,8 @@ code --install-extension releases/webian-prompt-0.1.0.vsix
 | `webianPrompt.codebuddy.mode` | 否 | `craft` | 右键动作未预设模式时的默认模式，取值 `craft` / `ask` / `plan`；侧边栏卡片按各自模式发送，不受此项影响 | `ask` |
 | `webianPrompt.codebuddy.autoSend` | 否 | `true` | 关闭后不发送，只写入剪贴板并聚焦对话框 | `false` |
 | `webianPrompt.codebuddy.fallbackToClipboard` | 否 | `true` | 两条发送命令都不可用时是否降级为写剪贴板 | `false` |
+| `webianPrompt.update.checkOnStartup` | 否 | `true` | 启动时是否检查新版本，失败静默 | `false` |
+| `webianPrompt.update.manifestUrl` | 否 | 仓库 `update.json` 的 GitHub raw 地址 | 更新清单地址，仅接受 `https`，留空即关闭检查 | `https://cdn.jsdelivr.net/gh/baiwanyi/webian.prompt@main/update.json` |
 
 前置命令 ID 属 CodeBuddy 内部实现，版本升级可能变动；三项命令类配置即为该风险的覆盖入口。
 
@@ -139,6 +141,7 @@ pnpm run compile
 | `pnpm run lint` | ESLint 全量检查 |
 | `pnpm run verify` | 类型检查 + ESLint + Prettier 格式校验 |
 | `pnpm run package` | 编译并输出 VSIX 到 `releases/` |
+| `pnpm run release` | 打包、推 tag 并发布到 GitHub Release（需 `gh auth login`，详见「更新检查」） |
 
 ## 使用示例
 
@@ -177,7 +180,8 @@ pnpm run compile
     "webianPrompt.codebuddy.reuseConversation": true,
     "webianPrompt.codebuddy.mode": "ask",
     "webianPrompt.codebuddy.autoSend": true,
-    "webianPrompt.codebuddy.fallbackToClipboard": true
+    "webianPrompt.codebuddy.fallbackToClipboard": true,
+    "webianPrompt.update.checkOnStartup": true
 }
 ```
 
@@ -185,6 +189,29 @@ pnpm run compile
 
 - 单条：卡片「更多」→「恢复默认」（仅内置模板可用，需二次确认）。
 - 全部：命令面板执行「微边提示词：恢复默认提示词」。该入口刻意只放在命令面板，视图标题栏不提供，避免误点清空自定义模板。
+
+### 更新检查
+
+扩展未上架市场，新版本通过仓库根目录的 `update.json` 告知：
+
+| 字段 | 说明 |
+| --- | --- |
+| `version` | 最新可用版本，须严格高于 `package.json` 的 `version` 才会提示 |
+| `url` | 下载页地址，仅接受 `https`；点击提示中的「前往下载」会用浏览器打开 |
+
+发版时同步这两项，用户下次重载窗口即可收到提示；同一版本只提示一次。
+
+- 检查在激活后异步执行，不阻塞侧边栏渲染；超时 3 秒，失败只写入「微边提示词 · 更新检查」输出面板。
+- `webianPrompt.update.checkOnStartup` 置 `false`，或把 `manifestUrl` 留空，都能完全停用。
+- GitHub 访问受限时，把地址换成镜像（如 jsDelivr）或内网地址即可，无需改代码。
+
+发布新版本：
+
+```bash
+pnpm run release
+```
+
+脚本会校验工作区是否干净、tag 是否已被占用，再依次执行 `pnpm run package`、推送分支与 `v*` tag、`gh release create` 上传 vsix。它不改 `update.json`，发布成功后仍需手动把版本号与下载地址同步过去并提交。
 
 ## 项目结构
 
@@ -197,6 +224,7 @@ webian.prompt/
 │   │   ├── commands/              # 右键动作：清单、注册、目标文件解析、执行编排
 │   │   ├── common/                # 二次确认、日志通道工厂、提示契约、Webview HTML 装配
 │   │   ├── prompt/                # 内置模板、动作提示词文案、草稿校验、持久化
+│   │   ├── update/                # 更新检查：清单地址配置、版本比对、清单校验
 │   │   └── views/                 # WebviewViewProvider 与传输层（握手缓存、消息下发）
 │   ├── webview/                   # 侧边栏界面（浏览器侧）
 │   │   ├── main.tsx               # 挂载入口：主题同步 + TooltipProvider
@@ -277,6 +305,7 @@ Webview 与宿主之间使用可辨识联合消息，仅供本扩展内部使用
 | 存储位置 | `context.globalState`（跨工作区共享） |
 | 键名 | `webianPrompt.templates.v1` |
 | 同步 | 通过 `globalState.setKeysForSync` 参与 Settings Sync，以键为粒度整体同步 |
+| 容量上限 | 整份列表序列化后 ≤ 512 KB（`MAX_TOTAL_BYTES`）；编辑器内实时显示用量，提交超限时由 Webview 拦截并提示，宿主复核后拒绝落盘 |
 | 读取归一化 | 补齐缺失的内置模板、剔除非法结构、跳过重复 `id`；顺序以持久化数组为准 |
 
 ## 常见问题与故障排查

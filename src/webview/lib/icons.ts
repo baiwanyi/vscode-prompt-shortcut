@@ -9,31 +9,37 @@ import {
     GitCommit,
     ListOrdered,
     Search,
+    ShieldCheck,
     Sparkles,
     Terminal,
     Upload,
+    Wrench,
     type LucideIcon,
 } from 'lucide-react'
 import type { PromptIconKey } from '@shared/types'
 
 export const PROMPT_ICON_MAP: Record<PromptIconKey, LucideIcon> = {
-    'git-commit': GitCommit,
-    'git-push': Upload,
-    'list-ordered': ListOrdered,
+    gitCommit: GitCommit,
+    gitPush: Upload,
+    listOrdered: ListOrdered,
+    wrench: Wrench,
+    shieldCheck: ShieldCheck,
     sparkles: Sparkles,
     bug: Bug,
     search: Search,
-    'file-text': FileText,
+    fileText: FileText,
     terminal: Terminal,
 }
 
 export const PROMPT_ICON_LABELS: Record<PromptIconKey, string> = {
-    'git-commit': '提交',
-    'git-push': '推送',
-    'list-ordered': '顺序',
+    gitCommit: '提交',
+    gitPush: '推送',
+    listOrdered: '顺序',
+    wrench: '修复',
+    shieldCheck: '审查',
     sparkles: '推荐',
     bug: '缺陷',
     search: '检索',
-    'file-text': '文档',
+    fileText: '文档',
     terminal: '终端',
 }

@@ -13,16 +13,27 @@ export type MoveDirection = 'up' | 'down'
 
 /** 提示词卡片可用的图标键，Webview 侧映射到 lucide 图标组件 */
 export type PromptIconKey =
-    'git-commit' | 'git-push' | 'list-ordered' | 'sparkles' | 'bug' | 'search' | 'file-text' | 'terminal'
+    | 'gitCommit'
+    | 'gitPush'
+    | 'listOrdered'
+    | 'wrench'
+    | 'shieldCheck'
+    | 'sparkles'
+    | 'bug'
+    | 'search'
+    | 'fileText'
+    | 'terminal'
 
 export const PROMPT_ICON_KEYS: readonly PromptIconKey[] = [
-    'git-commit',
-    'git-push',
-    'list-ordered',
+    'gitCommit',
+    'gitPush',
+    'listOrdered',
+    'wrench',
+    'shieldCheck',
     'sparkles',
     'bug',
     'search',
-    'file-text',
+    'fileText',
     'terminal',
 ]
 
@@ -77,6 +88,8 @@ export interface CodeBuddyStatus {
 /** 宿主推送给 Webview 的完整状态 */
 export interface PromptStatePayload {
     prompts: PromptTemplate[]
+    /** 整份列表序列化后的字节数，用于界面展示容量用量（上限见 shared/promptLimits） */
+    usedBytes: number
     codebuddy: CodeBuddyStatus
 }
 

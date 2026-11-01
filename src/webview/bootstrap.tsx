@@ -32,6 +32,7 @@ export function Bootstrap(): JSX.Element {
                     <PanelHeader
                         codebuddy={payload.codebuddy}
                         count={prompts.length}
+                        usedBytes={payload.usedBytes}
                         query={query}
                         onQueryChange={setQuery}
                     />
@@ -56,6 +57,8 @@ export function Bootstrap(): JSX.Element {
             <PromptEditorDialog
                 open={isOpen}
                 draft={editing}
+                prompts={prompts}
+                usedBytes={payload?.usedBytes ?? 0}
                 onOpenChange={(open) => {
                     if (!open) {
                         closeDialog()

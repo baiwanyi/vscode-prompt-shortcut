@@ -3,6 +3,7 @@
  * Webview 传来的草稿视为不可信输入：先用 parseDraft 收敛成结构可信的 PromptDraft，
  * 再由 validateDraft 给出业务错误；两者都不触碰持久化与视图，便于单独演进与测试。
  * 发送文本规则（resolveSendText）同属领域规则，一并收在这里，避免各发送入口各写一遍空正文回退。
+ * 容量校验属两侧共用的度量，落在 shared/promptCapacity，不在本文件重复实现。
  * 注意：正文允许为空，只有名称为空或超长才算非法；长度阈值必须取自 shared/promptLimits，不要就地写数字。
  */
 import type { PromptDraft, PromptTemplate } from '../../shared/types'

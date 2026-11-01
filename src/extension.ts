@@ -9,12 +9,19 @@ import * as vscode from 'vscode'
 import { CodeBuddyBridge } from './modules/codebuddy/CodeBuddyBridge'
 import { resolveBridgeConfig } from './modules/codebuddy/config'
 import { registerContextActions } from './modules/commands/contextActions'
+import { createReporter } from './modules/common/createReporter'
 import { PROMPT_STORAGE_KEY, PromptStore } from './modules/prompt/PromptStore'
+import { resolveUpdateSettings } from './modules/update/config'
+import { checkForUpdate } from './modules/update/updateChecker'
 import { PromptSidebarProvider } from './modules/views/PromptSidebarProvider'
+import { isRecord } from './shared/guards'
 import type { FeedbackLevel } from './modules/common/notify'
 
 const SIDEBAR_VIEW_ID = 'webianPrompt.sidebar'
 const SIDEBAR_CONTAINER_ID = 'webianPrompt'
+
+/** 已提示过的版本：同一版本只提醒一次，避免每次重载窗口都弹窗 */
+const LAST_NOTIFIED_KEY = 'webianPrompt.update.lastNotifiedVersion'
 
 /** 状态栏提示比弹窗更轻量，错误才升级为弹窗 */
 function notify(level: FeedbackLevel, message: string): void {
@@ -31,6 +38,43 @@ async function revealSidebar(): Promise<void> {
         await vscode.commands.executeCommand(`${SIDEBAR_VIEW_ID}.focus`)
     } catch {
         // 视图尚未渲染时 focus 会失败，此时容器已展开，忽略即可
+    }
+}
+
+/** 读扩展清单里的版本号：packageJSON 的类型是 any，先按记录收窄再取值 */
+function readLocalVersion(context: vscode.ExtensionContext): string {
+    const manifest: unknown = context.extension.packageJSON
+    return isRecord(manifest) && typeof manifest.version === 'string' ? manifest.version : ''
+}
+
+/**
+ * 启动期版本检查：只在新版本可用时打扰用户一次，检查失败与「已最新」都静默。
+ * 调用方不 await，网络慢也不会拖住激活与侧边栏渲染。
+ */
+async function checkUpdateOnStartup(context: vscode.ExtensionContext): Promise<void> {
+    const settings = resolveUpdateSettings()
+    if (!settings.checkOnStartup || !settings.manifestUrl) {
+        return
+    }
+    const report = createReporter('微边提示词 · 更新检查', (disposable): void => {
+        context.subscriptions.push(disposable)
+    })
+    const localVersion = readLocalVersion(context)
+    const outcome = await checkForUpdate(localVersion, settings.manifestUrl, report)
+    if (outcome.type !== 'update') {
+        return
+    }
+    // 同一版本已提示过就不再打扰：用户选择忽略后，下次窗口重载不该重弹
+    if (context.globalState.get<string>(LAST_NOTIFIED_KEY) === outcome.manifest.version) {
+        return
+    }
+    await context.globalState.update(LAST_NOTIFIED_KEY, outcome.manifest.version)
+    const choice = await vscode.window.showInformationMessage(
+        `微边提示词有新版本 ${outcome.manifest.version}（当前 ${localVersion}）`,
+        '前往下载',
+    )
+    if (choice === '前往下载') {
+        await vscode.env.openExternal(vscode.Uri.parse(outcome.manifest.url))
     }
 }
 
@@ -77,6 +121,8 @@ export function activate(context: vscode.ExtensionContext): void {
             }
         }),
     )
+
+    void checkUpdateOnStartup(context)
 }
 
 export function deactivate(): void {

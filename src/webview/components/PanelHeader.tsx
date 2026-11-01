@@ -5,6 +5,7 @@
  * 不能改成条件渲染，否则行宽/行高跳动会让搜索框位移。
  */
 import { cn } from 'cn'
+import { PanelHeaderCapacity } from '@components/PanelHeaderCapacity'
 import { PanelHeaderConnection } from '@components/PanelHeaderConnection'
 import { PanelHeaderSearch } from '@components/PanelHeaderSearch'
 import { Badge } from '@components/ui/badge'
@@ -17,11 +18,13 @@ interface PanelHeaderProps {
     codebuddy: CodeBuddyStatus
     /** 提示词总数，展示在标题右侧 */
     count: number
+    /** 存储用量字节数，交给容量徽章折算成百分比与 KB */
+    usedBytes: number
     query: string
     onQueryChange: (value: string) => void
 }
 
-export function PanelHeader({ codebuddy, count, query, onQueryChange }: PanelHeaderProps): JSX.Element {
+export function PanelHeader({ codebuddy, count, usedBytes, query, onQueryChange }: PanelHeaderProps): JSX.Element {
     const connection = describeConnection(codebuddy)
     const search = useSearchOverlay(query, onQueryChange)
 
@@ -32,6 +35,7 @@ export function PanelHeader({ codebuddy, count, query, onQueryChange }: PanelHea
                     <PanelHeaderConnection tone={connection.tone} text={connection.text} />
                     <span className="font-semibold">提示词</span>
                     <Badge variant="secondary">{count}</Badge>
+                    <PanelHeaderCapacity usedBytes={usedBytes} />
                 </div>
 
                 <PanelHeaderSearch search={search} query={query} onQueryChange={onQueryChange} />

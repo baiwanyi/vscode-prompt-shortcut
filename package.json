@@ -195,6 +195,16 @@
                     "type": "boolean",
                     "default": true,
                     "markdownDescription": "当未检测到 CodeBuddy 扩展时，是否退化为「写入剪贴板 + 提示」。"
+                },
+                "webianPrompt.update.checkOnStartup": {
+                    "type": "boolean",
+                    "default": true,
+                    "markdownDescription": "启动时是否检查新版本。检查失败会静默降级，不影响扩展使用。"
+                },
+                "webianPrompt.update.manifestUrl": {
+                    "type": "string",
+                    "default": "https://raw.githubusercontent.com/baiwanyi/webian.prompt/main/update.json",
+                    "markdownDescription": "更新清单地址，需返回含 `version` 与 `url` 的 JSON（仅接受 https）。留空则关闭检查；GitHub 访问受限时可改为镜像或内网地址。"
                 }
             }
         }
@@ -206,7 +216,8 @@
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
         "verify": "pnpm run typecheck && pnpm run lint && prettier --check .",
-        "package": "pnpm run compile && vsce package --no-dependencies --out releases/"
+        "package": "pnpm run compile && vsce package --no-dependencies --out releases/",
+        "release": "node scripts/release.mjs"
     },
     "devDependencies": {
         "@eslint-react/eslint-plugin": "^5.28.8",

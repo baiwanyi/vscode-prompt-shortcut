@@ -32,7 +32,7 @@ function normalizeTemplate(raw: unknown, index: number): PromptTemplate | null {
         id,
         label,
         prompt,
-        icon: isPromptIconKey(raw.icon) ? raw.icon : 'file-text',
+        icon: isPromptIconKey(raw.icon) ? raw.icon : 'fileText',
         mode: isChatMode(raw.mode) ? raw.mode : 'craft',
         builtin: BUILTIN_PROMPT_IDS.includes(id),
         createdAt: typeof raw.createdAt === 'number' ? raw.createdAt : Date.now(),

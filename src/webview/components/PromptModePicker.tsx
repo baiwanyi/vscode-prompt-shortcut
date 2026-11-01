@@ -1,16 +1,30 @@
 /**
- * 对话模式单选组 + 当前模式的一句话语义。
- * 模式白名单校验收敛在本组件内，短名与语义文案来自 lib/chat-mode-meta；
- * 调用方只传当前值与变更回调，不必关心取值是否合法。
- * 注意：单选模式允许点击已选项取消（回调收到空串），非法值在这里丢弃，
- * 视觉回弹靠受控 value 保证；说明文字必须跟随 value 而不是点击项。
+ * 对话模式下拉菜单。
+ * 模式白名单校验与选项短名都收敛在本组件内，调用方只传当前值与变更回调，不必关心取值是否合法。
+ * 注意：触发器与菜单项取同一份标签表，避免两处措辞漂移；新增模式时必须同步 shared/types 的 ChatMode 联合。
  */
-import { FieldDescription } from '@components/ui/field'
-import { ToggleGroup, ToggleGroupItem } from '@components/ui/toggle-group'
+import { ChevronDown } from 'lucide-react'
+import { Button } from '@components/ui/button'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+    DropdownMenuTrigger,
+} from '@components/ui/dropdown-menu'
 import type { ChatMode } from '@shared/types'
 import { CHAT_MODES, isChatMode } from '@shared/types'
-import { CHAT_MODE_DESCRIPTIONS, CHAT_MODE_LABELS } from '@webview/lib/chat-mode-meta'
 import type { JSX } from 'react'
+
+/** 菜单固定宽度：模式短名比图标名短，比触发器略宽即可容纳三项 */
+const MENU_WIDTH = 'w-44'
+
+/** 下拉触发器与菜单项共用的短名，漏写某个模式会直接触发类型检查失败 */
+const CHAT_MODE_LABELS: Record<ChatMode, string> = {
+    craft: 'Craft',
+    ask: 'Ask',
+    plan: 'Plan',
+}
 
 interface PromptModePickerProps {
     value: ChatMode
@@ -19,26 +33,29 @@ interface PromptModePickerProps {
 
 export function PromptModePicker({ value, onChange }: PromptModePickerProps): JSX.Element {
     return (
-        <>
-            <ToggleGroup
-                type="single"
-                variant="outline"
-                size="sm"
-                aria-label="对话模式"
-                value={value}
-                onValueChange={(next) => {
-                    if (isChatMode(next)) {
-                        onChange(next)
-                    }
-                }}
-            >
-                {CHAT_MODES.map((mode) => (
-                    <ToggleGroupItem key={mode} value={mode}>
-                        {CHAT_MODE_LABELS[mode]}
-                    </ToggleGroupItem>
-                ))}
-            </ToggleGroup>
-            <FieldDescription>{CHAT_MODE_DESCRIPTIONS[value]}</FieldDescription>
-        </>
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="justify-between" aria-label="对话模式">
+                    {CHAT_MODE_LABELS[value]}
+                    <ChevronDown data-icon="inline-end" className="text-muted-foreground" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className={MENU_WIDTH} align="start">
+                <DropdownMenuRadioGroup
+                    value={value}
+                    onValueChange={(next) => {
+                        if (isChatMode(next)) {
+                            onChange(next)
+                        }
+                    }}
+                >
+                    {CHAT_MODES.map((mode) => (
+                        <DropdownMenuRadioItem key={mode} value={mode}>
+                            {CHAT_MODE_LABELS[mode]}
+                        </DropdownMenuRadioItem>
+                    ))}
+                </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+        </DropdownMenu>
     )
 }
