@@ -8,11 +8,11 @@
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/baiwanyi/webian.prompt.git"
+        "url": "https://github.com/baiwanyi/vscode-prompt-shortcut.git"
     },
-    "homepage": "https://github.com/baiwanyi/webian.prompt#readme",
+    "homepage": "https://github.com/baiwanyi/vscode-prompt-shortcut#readme",
     "bugs": {
-        "url": "https://github.com/baiwanyi/webian.prompt/issues"
+        "url": "https://github.com/baiwanyi/vscode-prompt-shortcut/issues"
     },
     "private": true,
     "icon": "resources/icon.png",
@@ -203,7 +203,7 @@
                 },
                 "webianPrompt.update.manifestUrl": {
                     "type": "string",
-                    "default": "https://raw.githubusercontent.com/baiwanyi/webian.prompt/main/update.json",
+                    "default": "https://raw.githubusercontent.com/baiwanyi/vscode-prompt-shortcut/main/update.json",
                     "markdownDescription": "更新清单地址，需返回含 `version` 与 `url` 的 JSON（仅接受 https）。留空则关闭检查；GitHub 访问受限时可改为镜像或内网地址。"
                 }
             }

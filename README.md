@@ -76,8 +76,8 @@ CodeBuddy 未安装时扩展仍可运行，发送链路会降级为写剪贴板�
 ### 从源码运行（开发）
 
 ```bash
-git clone https://github.com/baiwanyi/webian.prompt.git
-cd webian.prompt
+git clone https://github.com/baiwanyi/vscode-prompt-shortcut.git
+cd vscode-prompt-shortcut
 pnpm install
 ```
 
@@ -110,7 +110,7 @@ code --install-extension releases/webian-prompt-0.1.0.vsix
 | `webianPrompt.codebuddy.autoSend` | 否 | `true` | 关闭后不发送，只写入剪贴板并聚焦对话框 | `false` |
 | `webianPrompt.codebuddy.fallbackToClipboard` | 否 | `true` | 两条发送命令都不可用时是否降级为写剪贴板 | `false` |
 | `webianPrompt.update.checkOnStartup` | 否 | `true` | 启动时是否检查新版本，失败静默 | `false` |
-| `webianPrompt.update.manifestUrl` | 否 | 仓库 `update.json` 的 GitHub raw 地址 | 更新清单地址，仅接受 `https`，留空即关闭检查 | `https://cdn.jsdelivr.net/gh/baiwanyi/webian.prompt@main/update.json` |
+| `webianPrompt.update.manifestUrl` | 否 | 仓库 `update.json` 的 GitHub raw 地址 | 更新清单地址，仅接受 `https`，留空即关闭检查 | `https://cdn.jsdelivr.net/gh/baiwanyi/vscode-prompt-shortcut@main/update.json` |
 
 前置命令 ID 属 CodeBuddy 内部实现，版本升级可能变动；三项命令类配置即为该风险的覆盖入口。
 
@@ -220,7 +220,7 @@ Release notes 由上一个 tag 到当前 tag 的提交标题生成：按 Convent
 ## 项目结构
 
 ```text
-webian.prompt/
+vscode-prompt-shortcut/
 ├── src/
 │   ├── extension.ts               # 激活入口：装配 store / bridge / provider 并注册命令
 │   ├── modules/                   # 扩展宿主（Node 侧）
@@ -398,5 +398,5 @@ MIT License，Copyright (c) 2026 webian。完整条款见 [LICENSE.txt](./LICENS
 | --- | --- |
 | 邮箱 | baiwanyi@webian.cn |
 | 主页 | [baiwanyi.com](https://baiwanyi.com) |
-| 仓库 | [github.com/baiwanyi/webian.prompt](https://github.com/baiwanyi/webian.prompt) |
-| 问题反馈 | [Issues](https://github.com/baiwanyi/webian.prompt/issues) |
+| 仓库 | [github.com/baiwanyi/vscode-prompt-shortcut](https://github.com/baiwanyi/vscode-prompt-shortcut) |
+| 问题反馈 | [Issues](https://github.com/baiwanyi/vscode-prompt-shortcut/issues) |

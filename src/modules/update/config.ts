@@ -6,7 +6,7 @@
 import * as vscode from 'vscode'
 
 /** 默认清单地址：发版时由维护者同步更新仓库根目录的 update.json */
-export const DEFAULT_MANIFEST_URL = 'https://raw.githubusercontent.com/baiwanyi/webian.prompt/main/update.json'
+export const DEFAULT_MANIFEST_URL = 'https://raw.githubusercontent.com/baiwanyi/vscode-prompt-shortcut/main/update.json'
 
 export interface UpdateSettings {
     /** 清单地址，空串表示关闭检查 */
