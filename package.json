@@ -67,25 +67,25 @@
             },
             {
                 "command": "baiwanyi.prompt.reviewWithCodeBuddy",
-                "title": "审查代码",
+                "title": "代码评审",
                 "category": "提示词快捷方式",
                 "icon": "$(shield)"
             },
             {
                 "command": "baiwanyi.prompt.optimizeWithCodeBuddy",
-                "title": "优化实现",
+                "title": "实现优化",
                 "category": "提示词快捷方式",
                 "icon": "$(zap)"
             },
             {
                 "command": "baiwanyi.prompt.styleWithCodeBuddy",
-                "title": "规范风格",
+                "title": "编码规范",
                 "category": "提示词快捷方式",
                 "icon": "$(checklist)"
             },
             {
                 "command": "baiwanyi.prompt.refactorWithCodeBuddy",
-                "title": "重构结构",
+                "title": "代码重构",
                 "category": "提示词快捷方式",
                 "icon": "$(symbol-structure)"
             }

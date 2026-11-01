@@ -89,7 +89,7 @@ export function PromptItem({
             <ItemContent className="min-w-0">
                 <ItemTitle className="min-w-0">
                     <span className="truncate">{prompt.label}</span>
-                    {prompt.builtin ? <Badge variant="outline">内置</Badge> : null}
+                    {prompt.builtin ? <Badge variant="outline" className="text-xs font-light">内置</Badge> : null}
                 </ItemTitle>
             </ItemContent>
             <ItemActions onClick={(event): void => event.stopPropagation()}>
