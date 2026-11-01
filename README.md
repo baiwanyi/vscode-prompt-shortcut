@@ -1,6 +1,6 @@
-# 微边提示词（webian-prompt）
+# 提示词快捷方式（vscode-prompt-shortcut）
 
-一个 VS Code 扩展：把常用 AI 提示词沉淀为侧边栏卡片，点击即发送到 CodeBuddy 对话；编辑器与资源管理器右键通过「使用 WebianCode 进行」子菜单提供修复、审查、优化、规范、重构五个动作。
+一个 VS Code 扩展：把常用 AI 提示词沉淀为侧边栏卡片，点击即发送到 CodeBuddy 对话；编辑器与资源管理器右键通过「快捷命令」子菜单提供修复、审查、优化、规范、重构五个动作。
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
@@ -91,28 +91,28 @@ PowerShell 下命令相同，若策略限制脚本执行，可使用 `pnpm.cmd i
 pnpm run package
 ```
 
-命令会在 `releases/` 生成 `webian-prompt-0.1.0.vsix`，然后在 VS Code 中执行：
+命令会在 `releases/` 生成 `vscode-prompt-shortcut-0.1.0.vsix`，然后在 VS Code 中执行：
 
 ```bash
-code --install-extension releases/webian-prompt-0.1.0.vsix
+code --install-extension releases/vscode-prompt-shortcut-0.1.0.vsix
 ```
 
 或通过扩展面板的「从 VSIX 安装」选择该文件。
 
 ## 配置
 
-本项目不使用环境变量，全部配置位于 VS Code 设置（`settings.json` 或「设置 → 扩展 → 微边提示词」）。
+本项目不使用环境变量，全部配置位于 VS Code 设置（`settings.json` 或「设置 → 扩展 → 提示词快捷方式」）。
 
 | 变量名 | 是否必填 | 默认值 | 说明 | 示例 |
 | --- | --- | --- | --- | --- |
-| `webianPrompt.codebuddy.reuseConversation` | 否 | `true` | 是否把提示词发往当前对话。关闭后每次点击都会新建会话 | `false` |
-| `webianPrompt.codebuddy.sendCommand` | 否 | `tencentcloud.codingcopilot.chat.sendMessage` | 复用当前会话时调用的命令 ID | `tencentcloud.codingcopilot.chat.sendMessage` |
-| `webianPrompt.codebuddy.newChatCommand` | 否 | `tencentcloud.codingcopilot.sendToChat` | 复用失败时用于新建会话的命令 ID | `tencentcloud.codingcopilot.sendToChat` |
-| `webianPrompt.codebuddy.mode` | 否 | `craft` | 右键动作未预设模式时的默认模式，取值 `craft` / `ask` / `plan`；侧边栏卡片按各自模式发送，不受此项影响 | `ask` |
-| `webianPrompt.codebuddy.autoSend` | 否 | `true` | 关闭后不发送，只写入剪贴板并聚焦对话框 | `false` |
-| `webianPrompt.codebuddy.fallbackToClipboard` | 否 | `true` | 两条发送命令都不可用时是否降级为写剪贴板 | `false` |
-| `webianPrompt.update.checkOnStartup` | 否 | `true` | 启动时是否检查新版本，失败静默 | `false` |
-| `webianPrompt.update.manifestUrl` | 否 | 仓库 `update.json` 的 GitHub raw 地址 | 更新清单地址，仅接受 `https`，留空即关闭检查 | `https://cdn.jsdelivr.net/gh/baiwanyi/vscode-prompt-shortcut@main/update.json` |
+| `baiwanyi.prompt.codebuddy.reuseConversation` | 否 | `true` | 是否把提示词发往当前对话。关闭后每次点击都会新建会话 | `false` |
+| `baiwanyi.prompt.codebuddy.sendCommand` | 否 | `tencentcloud.codingcopilot.chat.sendMessage` | 复用当前会话时调用的命令 ID | `tencentcloud.codingcopilot.chat.sendMessage` |
+| `baiwanyi.prompt.codebuddy.newChatCommand` | 否 | `tencentcloud.codingcopilot.sendToChat` | 复用失败时用于新建会话的命令 ID | `tencentcloud.codingcopilot.sendToChat` |
+| `baiwanyi.prompt.codebuddy.mode` | 否 | `craft` | 右键动作未预设模式时的默认模式，取值 `craft` / `ask` / `plan`；侧边栏卡片按各自模式发送，不受此项影响 | `ask` |
+| `baiwanyi.prompt.codebuddy.autoSend` | 否 | `true` | 关闭后不发送，只写入剪贴板并聚焦对话框 | `false` |
+| `baiwanyi.prompt.codebuddy.fallbackToClipboard` | 否 | `true` | 两条发送命令都不可用时是否降级为写剪贴板 | `false` |
+| `baiwanyi.prompt.update.checkOnStartup` | 否 | `true` | 启动时是否检查新版本，失败静默（依赖 `onStartupFinished` 激活） | `false` |
+| `baiwanyi.prompt.update.manifestUrl` | 否 | 仓库 `update.json` 的 GitHub raw 地址 | 更新清单地址，仅接受 `https`，留空即关闭检查 | 镜像示例：`https://cdn.jsdelivr.net/gh/baiwanyi/vscode-prompt-shortcut@main/update.json` |
 
 前置命令 ID 属 CodeBuddy 内部实现，版本升级可能变动；三项命令类配置即为该风险的覆盖入口。
 
@@ -132,7 +132,7 @@ pnpm run compile
   dist/webview/assets/index-<hash>.js      450.02 kB │ gzip: 144.15 kB
 ```
 
-在 VS Code 中按 `F5` 启动扩展开发宿主（`preLaunchTask` 已配置为 `compile`），活动栏会出现「微边提示词」图标，点击展开侧边栏。
+在 VS Code 中按 `F5` 启动扩展开发宿主（`preLaunchTask` 已配置为 `compile`），活动栏会出现「提示词快捷方式」图标，点击展开侧边栏。
 
 其他常用命令：
 
@@ -163,7 +163,7 @@ pnpm run compile
 
 ### 右键动作
 
-在编辑器内右键（或资源管理器中右键文件）→「使用 WebianCode 进行」→ 选择动作：
+在编辑器内右键（或资源管理器中右键文件）→「快捷命令」→ 选择动作：
 
 | 菜单项 | 行为 | 使用模式 |
 | --- | --- | --- |
@@ -179,18 +179,18 @@ pnpm run compile
 
 ```json
 {
-    "webianPrompt.codebuddy.reuseConversation": true,
-    "webianPrompt.codebuddy.mode": "ask",
-    "webianPrompt.codebuddy.autoSend": true,
-    "webianPrompt.codebuddy.fallbackToClipboard": true,
-    "webianPrompt.update.checkOnStartup": true
+    "baiwanyi.prompt.codebuddy.reuseConversation": true,
+    "baiwanyi.prompt.codebuddy.mode": "ask",
+    "baiwanyi.prompt.codebuddy.autoSend": true,
+    "baiwanyi.prompt.codebuddy.fallbackToClipboard": true,
+    "baiwanyi.prompt.update.checkOnStartup": true
 }
 ```
 
 ### 恢复默认
 
 - 单条：卡片「更多」→「恢复默认」（仅内置模板可用，需二次确认）。
-- 全部：命令面板执行「微边提示词：恢复默认提示词」。该入口刻意只放在命令面板，视图标题栏不提供，避免误点清空自定义模板。
+- 全部：命令面板执行「提示词快捷方式：恢复默认提示词」（命令 ID `baiwanyi.prompt.reset`）。该入口刻意只放在命令面板，视图标题栏不提供，避免误点清空自定义模板。
 
 ### 更新检查
 
@@ -203,8 +203,9 @@ pnpm run compile
 
 发版时同步这两项，用户下次重载窗口即可收到提示；同一版本只提示一次。
 
-- 检查在激活后异步执行，不阻塞侧边栏渲染；超时 3 秒，失败只写入「微边提示词 · 更新检查」输出面板。
-- `webianPrompt.update.checkOnStartup` 置 `false`，或把 `manifestUrl` 留空，都能完全停用。
+- 检查在激活后异步执行，不阻塞侧边栏渲染；超时 3 秒，失败只写入「提示词快捷方式 · 更新检查」输出面板。
+- `activationEvents` 声明了 `onStartupFinished`，窗口启动后即触发检查，无需先打开侧边栏。
+- `baiwanyi.prompt.update.checkOnStartup` 置 `false`，或把 `manifestUrl` 留空，都能完全停用。
 - GitHub 访问受限时，把地址换成镜像（如 jsDelivr）或内网地址即可，无需改代码。
 
 发布新版本：
@@ -262,15 +263,15 @@ vscode-prompt-shortcut/
 
 | 命令 ID | 参数 | 返回值 | 说明 |
 | --- | --- | --- | --- |
-| `webianPrompt.openSidebar` | 无 | `Promise<void>` | 展开侧边栏容器并聚焦视图 |
-| `webianPrompt.newPrompt` | 无 | `Promise<void>` | 展开侧边栏并打开新建弹窗 |
-| `webianPrompt.refresh` | 无 | `Promise<void>` | 重新探测并推送状态 |
-| `webianPrompt.resetPrompts` | 无 | `Promise<void>` | 二次确认后删除全部自定义模板并恢复内置默认 |
-| `webianPrompt.fixWithCodeBuddy` | `uri?: vscode.Uri` | `Promise<void>` | 修复动作；`uri` 由资源管理器右键传入 |
-| `webianPrompt.reviewWithCodeBuddy` | `uri?: vscode.Uri` | `Promise<void>` | 审查动作，使用 `ask` 模式 |
-| `webianPrompt.optimizeWithCodeBuddy` | `uri?: vscode.Uri` | `Promise<void>` | 优化动作，使用 `ask` 模式 |
-| `webianPrompt.styleWithCodeBuddy` | `uri?: vscode.Uri` | `Promise<void>` | 规范动作 |
-| `webianPrompt.refactorWithCodeBuddy` | `uri?: vscode.Uri` | `Promise<void>` | 重构动作，使用 `ask` 模式 |
+| `baiwanyi.prompt.openSidebar` | 无 | `Promise<void>` | 展开侧边栏容器并聚焦视图 |
+| `baiwanyi.prompt.create` | 无 | `Promise<void>` | 展开侧边栏并打开新建弹窗 |
+| `baiwanyi.prompt.refresh` | 无 | `Promise<void>` | 重新探测并推送状态 |
+| `baiwanyi.prompt.reset` | 无 | `Promise<void>` | 二次确认后删除全部自定义模板并恢复内置默认 |
+| `baiwanyi.prompt.fixWithCodeBuddy` | `uri?: vscode.Uri` | `Promise<void>` | 修复动作；`uri` 由资源管理器右键传入 |
+| `baiwanyi.prompt.reviewWithCodeBuddy` | `uri?: vscode.Uri` | `Promise<void>` | 审查动作，使用 `ask` 模式 |
+| `baiwanyi.prompt.optimizeWithCodeBuddy` | `uri?: vscode.Uri` | `Promise<void>` | 优化动作，使用 `ask` 模式 |
+| `baiwanyi.prompt.styleWithCodeBuddy` | `uri?: vscode.Uri` | `Promise<void>` | 规范动作 |
+| `baiwanyi.prompt.refactorWithCodeBuddy` | `uri?: vscode.Uri` | `Promise<void>` | 重构动作，使用 `ask` 模式 |
 
 五个动作命令未传 `uri` 时，目标取自当前活动编辑器；两者都没有时弹出「请先打开一个文件」。
 
@@ -309,7 +310,7 @@ Webview 与宿主之间使用可辨识联合消息，仅供本扩展内部使用
 | 项 | 值 |
 | --- | --- |
 | 存储位置 | `context.globalState`（跨工作区共享） |
-| 键名 | `webianPrompt.templates.v1` |
+| 键名 | `webianPrompt.templates.v1`（沿用历史键名，改名会导致已存模板读不到，故不随扩展标识调整） |
 | 同步 | 通过 `globalState.setKeysForSync` 参与 Settings Sync，以键为粒度整体同步 |
 | 容量上限 | 整份列表序列化后 ≤ 512 KB（`MAX_TOTAL_BYTES`）；编辑器内实时显示用量，提交超限时由 Webview 拦截并提示，宿主复核后拒绝落盘 |
 | 读取归一化 | 补齐缺失的内置模板、剔除非法结构、跳过重复 `id`；顺序以持久化数组为准 |
@@ -330,9 +331,9 @@ Webview 加载的是 `dist/webview` 下的产物，不是源码。重新执行 `
 
 **每次点击都新建了会话**
 
-复用会话依赖 `tencentcloud.codingcopilot.getContext` 返回的 `conversationId`。读不到时会退化为不指定会话，落点由 CodeBuddy 决定。可在输出面板选择「微边提示词」通道查看失败原因，或临时关闭 `reuseConversation` 以稳定走新建通道。
+复用会话依赖 `tencentcloud.codingcopilot.getContext` 返回的 `conversationId`。读不到时会退化为不指定会话，落点由 CodeBuddy 决定。可在输出面板选择「提示词快捷方式」通道查看失败原因，或临时关闭 `reuseConversation` 以稳定走新建通道。
 
-**右键菜单提示「请先打开一个文件，再使用「微边代码」菜单」**
+**右键菜单提示「请先打开一个文件，再使用「快捷命令」菜单」**
 
 动作需要目标文件：资源管理器右键会传入文件 `Uri`，命令面板调用则要求存在活动编辑器。
 

@@ -17,11 +17,11 @@ import { PromptSidebarProvider } from './modules/views/PromptSidebarProvider'
 import { isRecord } from './shared/guards'
 import type { FeedbackLevel } from './modules/common/notify'
 
-const SIDEBAR_VIEW_ID = 'webianPrompt.sidebar'
-const SIDEBAR_CONTAINER_ID = 'webianPrompt'
+const SIDEBAR_VIEW_ID = 'baiwanyi.prompt.sidebar'
+const SIDEBAR_CONTAINER_ID = 'baiwanyi.prompt'
 
 /** 已提示过的版本：同一版本只提醒一次，避免每次重载窗口都弹窗 */
-const LAST_NOTIFIED_KEY = 'webianPrompt.update.lastNotifiedVersion'
+const LAST_NOTIFIED_KEY = 'baiwanyi.prompt.update.lastNotifiedVersion'
 
 /** 状态栏提示比弹窗更轻量，错误才升级为弹窗 */
 function notify(level: FeedbackLevel, message: string): void {
@@ -29,7 +29,7 @@ function notify(level: FeedbackLevel, message: string): void {
         void vscode.window.showErrorMessage(message)
         return
     }
-    vscode.window.setStatusBarMessage(`微边提示词：${message}`, 4000)
+    vscode.window.setStatusBarMessage(`提示词快捷方式：${message}`, 4000)
 }
 
 async function revealSidebar(): Promise<void> {
@@ -56,7 +56,7 @@ async function checkUpdateOnStartup(context: vscode.ExtensionContext): Promise<v
     if (!settings.checkOnStartup || !settings.manifestUrl) {
         return
     }
-    const report = createReporter('微边提示词 · 更新检查', (disposable): void => {
+    const report = createReporter('提示词快捷方式 · 更新检查', (disposable): void => {
         context.subscriptions.push(disposable)
     })
     const localVersion = readLocalVersion(context)
@@ -70,7 +70,7 @@ async function checkUpdateOnStartup(context: vscode.ExtensionContext): Promise<v
     }
     await context.globalState.update(LAST_NOTIFIED_KEY, outcome.manifest.version)
     const choice = await vscode.window.showInformationMessage(
-        `微边提示词有新版本 ${outcome.manifest.version}（当前 ${localVersion}）`,
+        `提示词快捷方式有新版本 ${outcome.manifest.version}（当前 ${localVersion}）`,
         '前往下载',
     )
     if (choice === '前往下载') {
@@ -95,18 +95,18 @@ export function activate(context: vscode.ExtensionContext): void {
     )
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('webianPrompt.openSidebar', async () => {
+        vscode.commands.registerCommand('baiwanyi.prompt.openSidebar', async () => {
             await revealSidebar()
             await provider.refresh()
         }),
-        vscode.commands.registerCommand('webianPrompt.newPrompt', async () => {
+        vscode.commands.registerCommand('baiwanyi.prompt.create', async () => {
             await revealSidebar()
             await provider.openEditorForNew()
         }),
-        vscode.commands.registerCommand('webianPrompt.refresh', async () => {
+        vscode.commands.registerCommand('baiwanyi.prompt.refresh', async () => {
             await provider.refresh()
         }),
-        vscode.commands.registerCommand('webianPrompt.resetPrompts', async () => {
+        vscode.commands.registerCommand('baiwanyi.prompt.reset', async () => {
             await revealSidebar()
             await provider.resetWithConfirm()
         }),
@@ -116,7 +116,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
     context.subscriptions.push(
         vscode.workspace.onDidChangeConfiguration((event) => {
-            if (event.affectsConfiguration('webianPrompt')) {
+            if (event.affectsConfiguration('baiwanyi.prompt')) {
                 void provider.refresh()
             }
         }),

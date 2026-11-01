@@ -37,7 +37,7 @@ export interface BridgeConfig {
 
 /** 把扩展设置读成桥接配置；默认值与本文件常量同源，避免两处各写一份命令 ID */
 export function resolveBridgeConfig(): BridgeConfig {
-    const config = vscode.workspace.getConfiguration('webianPrompt')
+    const config = vscode.workspace.getConfiguration('baiwanyi.prompt')
     const mode = config.get<ChatMode>('codebuddy.mode', 'craft')
     return {
         sendCommand: config.get<string>('codebuddy.sendCommand', DEFAULT_SEND_COMMAND) || DEFAULT_SEND_COMMAND,

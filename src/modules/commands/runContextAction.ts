@@ -20,7 +20,7 @@ export async function runContextAction(
 ): Promise<void> {
     const target = resolveTargetFile(uri)
     if (!target) {
-        await vscode.window.showWarningMessage('请先打开一个文件，再使用「微边代码」菜单。')
+        await vscode.window.showWarningMessage('请先打开一个文件，再使用「快捷命令」菜单。')
         return
     }
     await dispatchPrompt(bridge, entry.buildPrompt(describeTarget(target)), entry.mode, notify)

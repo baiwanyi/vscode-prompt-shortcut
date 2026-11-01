@@ -20,7 +20,7 @@ import { confirmAction } from '../common/confirm'
 import { parseDraft, resolveSendText, validateDraft } from '../prompt/draft'
 
 export class PromptSidebarProvider implements vscode.WebviewViewProvider {
-    public static readonly viewType = 'webianPrompt.sidebar'
+    public static readonly viewType = 'baiwanyi.prompt.sidebar'
 
     /** 视图传输层：负责 HTML 装配、握手缓存与消息下发 */
     private readonly messenger: WebviewMessenger
@@ -267,7 +267,7 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
 
     /** 消息处理链路的兜底：详情只留下行日志，界面给可读提示，避免未捕获拒绝导致点击无反应 */
     private async reportUnexpectedError(error: unknown): Promise<void> {
-        console.error('[webianPrompt] 处理 Webview 消息失败：', describeError(error))
+        console.error('[baiwanyi.prompt] 处理 Webview 消息失败：', describeError(error))
         await this.messenger.notify('error', '操作失败，请重试；若持续出现可重新加载窗口。')
     }
 }

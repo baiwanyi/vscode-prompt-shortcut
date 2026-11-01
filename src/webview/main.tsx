@@ -29,7 +29,7 @@ function renderFatalError(error: unknown): void {
     const message = error instanceof Error ? error.message : String(error)
     const container = document.getElementById('root') ?? document.body
     container.dataset.fatal = ''
-    container.textContent = `微边提示词加载失败：${message}。请执行 pnpm run compile 后重新加载窗口。`
+    container.textContent = `提示词快捷方式加载失败：${message}。请执行 pnpm run compile 后重新加载窗口。`
 }
 
 function mount(): void {
@@ -54,6 +54,6 @@ function mount(): void {
 try {
     mount()
 } catch (error) {
-    console.error('[webianPrompt] 挂载失败：', error)
+    console.error('[baiwanyi.prompt] 挂载失败：', error)
     renderFatalError(error)
 }

@@ -13,7 +13,10 @@ import { isRecord } from '../../shared/guards'
 import { MAX_LABEL_LENGTH, MAX_PROMPT_LENGTH } from '../../shared/promptLimits'
 import { isChatMode, isPromptIconKey } from '../../shared/types'
 
-/** 存储键：既是 globalState 的读写键，也是登记给 Settings Sync 的同步键（见 activate） */
+/**
+ * 存储键：既是 globalState 的读写键，也是登记给 Settings Sync 的同步键（见 activate）。
+ * 注意：键名沿用旧前缀且不随扩展标识改名——换键会让已存模板全部读不到，等同于用户数据丢失。
+ */
 export const PROMPT_STORAGE_KEY = 'webianPrompt.templates.v1'
 
 /** 把外部输入收敛为一条可信模板，非法字段一律回落到安全默认值 */

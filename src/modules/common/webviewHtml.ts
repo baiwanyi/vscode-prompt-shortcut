@@ -59,7 +59,7 @@ export async function buildWebviewHtml(webview: vscode.Webview, extensionUri: vs
  * 错误信息可能带尖括号或引号，拼进文本节点前必须先转义。
  */
 export function buildFallbackHtml(reason: string): string {
-    return `<!doctype html><html><body><h3>微边提示词</h3><p>Webview 资源缺失，请先执行 pnpm run compile（${escapeHtml(reason)}）</p></body></html>`
+    return `<!doctype html><html><body><h3>提示词快捷方式</h3><p>Webview 资源缺失，请先执行 pnpm run compile（${escapeHtml(reason)}）</p></body></html>`
 }
 
 /** 最小 HTML 转义：只覆盖会破坏文本节点的四个字符，兜底页面无需完整实体表 */

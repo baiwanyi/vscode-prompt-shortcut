@@ -1,8 +1,8 @@
 {
     "$schema": "https://json.schemastore.org/package.json",
-    "name": "webian-prompt",
-    "displayName": "WebianCode Prompt",
-    "description": "增强 CodeBuddy 提示词管理",
+    "name": "vscode-prompt-shortcut",
+    "displayName": "VSCode Prompt Shortcut",
+    "description": "CodeBuddy 代码开发提示词快捷方式",
     "version": "0.1.0",
     "publisher": "Baiwanyi",
     "license": "MIT",
@@ -30,111 +30,114 @@
         "prompt-manager"
     ],
     "main": "./dist/extension.js",
+    "activationEvents": [
+        "onStartupFinished"
+    ],
     "contributes": {
         "commands": [
             {
-                "command": "webianPrompt.openSidebar",
+                "command": "baiwanyi.prompt.openSidebar",
                 "title": "打开提示词面板",
-                "category": "微边提示词",
+                "category": "提示词快捷方式",
                 "icon": "$(list-unordered)"
             },
             {
-                "command": "webianPrompt.newPrompt",
+                "command": "baiwanyi.prompt.create",
                 "title": "新建提示词模板",
-                "category": "微边提示词",
+                "category": "提示词快捷方式",
                 "icon": "$(add)"
             },
             {
-                "command": "webianPrompt.refresh",
+                "command": "baiwanyi.prompt.refresh",
                 "title": "刷新提示词",
-                "category": "微边提示词",
+                "category": "提示词快捷方式",
                 "icon": "$(refresh)"
             },
             {
-                "command": "webianPrompt.resetPrompts",
+                "command": "baiwanyi.prompt.reset",
                 "title": "恢复默认提示词",
-                "category": "微边提示词",
+                "category": "提示词快捷方式",
                 "icon": "$(history)"
             },
             {
-                "command": "webianPrompt.fixWithCodeBuddy",
+                "command": "baiwanyi.prompt.fixWithCodeBuddy",
                 "title": "修复",
-                "category": "微边代码"
+                "category": "快捷命令"
             },
             {
-                "command": "webianPrompt.reviewWithCodeBuddy",
+                "command": "baiwanyi.prompt.reviewWithCodeBuddy",
                 "title": "审查",
-                "category": "微边代码"
+                "category": "快捷命令"
             },
             {
-                "command": "webianPrompt.optimizeWithCodeBuddy",
+                "command": "baiwanyi.prompt.optimizeWithCodeBuddy",
                 "title": "优化",
-                "category": "微边代码"
+                "category": "快捷命令"
             },
             {
-                "command": "webianPrompt.styleWithCodeBuddy",
+                "command": "baiwanyi.prompt.styleWithCodeBuddy",
                 "title": "规范",
-                "category": "微边代码"
+                "category": "快捷命令"
             },
             {
-                "command": "webianPrompt.refactorWithCodeBuddy",
+                "command": "baiwanyi.prompt.refactorWithCodeBuddy",
                 "title": "重构",
-                "category": "微边代码"
+                "category": "快捷命令"
             }
         ],
         "submenus": [
             {
-                "id": "webianPrompt.editorContext",
-                "label": "使用 WebianCode 进行",
+                "id": "baiwanyi.prompt.editorContext",
+                "label": "快捷命令",
                 "icon": "resources/icon.svg"
             }
         ],
         "menus": {
             "editor/context": [
                 {
-                    "submenu": "webianPrompt.editorContext",
+                    "submenu": "baiwanyi.prompt.editorContext",
                     "when": "editorTextFocus",
-                    "group": "navigation@1.47"
+                    "group": "navigation@1"
                 }
             ],
             "explorer/context": [
                 {
-                    "submenu": "webianPrompt.editorContext",
+                    "submenu": "baiwanyi.prompt.editorContext",
                     "when": "resourceScheme == file && !explorerResourceIsFolder",
-                    "group": "1_webian@1"
+                    "group": "1_quickcommand@1"
                 }
             ],
-            "webianPrompt.editorContext": [
+            "baiwanyi.prompt.editorContext": [
                 {
-                    "command": "webianPrompt.fixWithCodeBuddy",
-                    "group": "1_webian@1"
+                    "command": "baiwanyi.prompt.fixWithCodeBuddy",
+                    "group": "1_quickcommand@1"
                 },
                 {
-                    "command": "webianPrompt.reviewWithCodeBuddy",
-                    "group": "1_webian@2"
+                    "command": "baiwanyi.prompt.reviewWithCodeBuddy",
+                    "group": "1_quickcommand@2"
                 },
                 {
-                    "command": "webianPrompt.optimizeWithCodeBuddy",
-                    "group": "1_webian@3"
+                    "command": "baiwanyi.prompt.optimizeWithCodeBuddy",
+                    "group": "1_quickcommand@3"
                 },
                 {
-                    "command": "webianPrompt.styleWithCodeBuddy",
-                    "group": "1_webian@4"
+                    "command": "baiwanyi.prompt.styleWithCodeBuddy",
+                    "group": "1_quickcommand@4"
                 },
                 {
-                    "command": "webianPrompt.refactorWithCodeBuddy",
-                    "group": "1_webian@5"
+                    "command": "baiwanyi.prompt.refactorWithCodeBuddy",
+                    "group": "1_quickcommand@5"
                 }
             ],
             "view/title": [
                 {
-                    "command": "webianPrompt.newPrompt",
-                    "when": "view == webianPrompt.sidebar",
+                    "command": "baiwanyi.prompt.create",
+                    "when": "view == baiwanyi.prompt.sidebar",
                     "group": "navigation@1"
                 },
                 {
-                    "command": "webianPrompt.refresh",
-                    "when": "view == webianPrompt.sidebar",
+                    "command": "baiwanyi.prompt.refresh",
+                    "when": "view == baiwanyi.prompt.sidebar",
                     "group": "navigation@2"
                 }
             ]
@@ -142,41 +145,41 @@
         "viewsContainers": {
             "activitybar": [
                 {
-                    "id": "webianPrompt",
-                    "title": "微边提示词",
+                    "id": "baiwanyi.prompt",
+                    "title": "提示词快捷方式",
                     "icon": "resources/icon.svg"
                 }
             ]
         },
         "views": {
-            "webianPrompt": [
+            "baiwanyi.prompt": [
                 {
                     "type": "webview",
-                    "id": "webianPrompt.sidebar",
-                    "name": "微边提示词",
+                    "id": "baiwanyi.prompt.sidebar",
+                    "name": "提示词快捷方式",
                     "icon": "resources/icon.svg"
                 }
             ]
         },
         "configuration": {
-            "title": "微边提示词",
+            "title": "提示词快捷方式",
             "properties": {
-                "webianPrompt.codebuddy.reuseConversation": {
+                "baiwanyi.prompt.codebuddy.reuseConversation": {
                     "type": "boolean",
                     "default": true,
                     "markdownDescription": "是否把提示词发送到 CodeBuddy 的当前对话。开启后不再每次新建会话标签；关闭后每次点击都会新建会话。"
                 },
-                "webianPrompt.codebuddy.sendCommand": {
+                "baiwanyi.prompt.codebuddy.sendCommand": {
                     "type": "string",
                     "default": "tencentcloud.codingcopilot.chat.sendMessage",
                     "markdownDescription": "复用当前对话时调用的命令 ID。默认使用 CodeBuddy 内置的 `chat.sendMessage`（发往当前会话，不新建会话）。若目标版本变更，可在此改为自定义命令。"
                 },
-                "webianPrompt.codebuddy.newChatCommand": {
+                "baiwanyi.prompt.codebuddy.newChatCommand": {
                     "type": "string",
                     "default": "tencentcloud.codingcopilot.sendToChat",
                     "markdownDescription": "复用当前对话失败时用于新建会话的命令 ID。默认使用 CodeBuddy 内置的 `sendToChat`（新建对话并自动发送）。"
                 },
-                "webianPrompt.codebuddy.mode": {
+                "baiwanyi.prompt.codebuddy.mode": {
                     "type": "string",
                     "enum": [
                         "craft",
@@ -186,22 +189,22 @@
                     "default": "craft",
                     "markdownDescription": "右键菜单动作未预设模式时使用的默认对话模式。侧边栏卡片始终按各自选定的模式发送，不受此项影响。"
                 },
-                "webianPrompt.codebuddy.autoSend": {
+                "baiwanyi.prompt.codebuddy.autoSend": {
                     "type": "boolean",
                     "default": true,
                     "markdownDescription": "点击提示词后是否直接触发发送。关闭后仅将文本写入剪贴板并聚焦 CodeBuddy 对话框，由你手动粘贴发送。"
                 },
-                "webianPrompt.codebuddy.fallbackToClipboard": {
+                "baiwanyi.prompt.codebuddy.fallbackToClipboard": {
                     "type": "boolean",
                     "default": true,
                     "markdownDescription": "当未检测到 CodeBuddy 扩展时，是否退化为「写入剪贴板 + 提示」。"
                 },
-                "webianPrompt.update.checkOnStartup": {
+                "baiwanyi.prompt.update.checkOnStartup": {
                     "type": "boolean",
                     "default": true,
                     "markdownDescription": "启动时是否检查新版本。检查失败会静默降级，不影响扩展使用。"
                 },
-                "webianPrompt.update.manifestUrl": {
+                "baiwanyi.prompt.update.manifestUrl": {
                     "type": "string",
                     "default": "https://raw.githubusercontent.com/baiwanyi/vscode-prompt-shortcut/main/update.json",
                     "markdownDescription": "更新清单地址，需返回含 `version` 与 `url` 的 JSON（仅接受 https）。留空则关闭检查；GitHub 访问受限时可改为镜像或内网地址。"

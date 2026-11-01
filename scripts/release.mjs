@@ -98,7 +98,7 @@ run(`git push origin ${tag}`)
 
 const previousTag = findPreviousTag(tag)
 const notes = buildReleaseNotes(collectSubjects(previousTag, tag))
-const notesPath = join(tmpdir(), `webian-release-notes-${version}.md`)
+const notesPath = join(tmpdir(), `vscode-prompt-shortcut-release-notes-${version}.md`)
 if (notes) {
     writeFileSync(notesPath, notes, 'utf8')
 }

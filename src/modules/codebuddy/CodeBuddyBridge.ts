@@ -53,7 +53,7 @@ export class CodeBuddyBridge {
         private readonly readConfig: () => BridgeConfig,
         registerDisposable: (disposable: vscode.Disposable) => void,
     ) {
-        this.reporter = createReporter('微边提示词', registerDisposable)
+        this.reporter = createReporter('提示词快捷方式', registerDisposable)
     }
 
     /**
@@ -170,7 +170,7 @@ export class CodeBuddyBridge {
 
         return {
             outcome: 'failed',
-            detail: `发送到 CodeBuddy 失败（${failures.join('；')}）。请在设置中调整 webianPrompt.codebuddy.sendCommand / newChatCommand。`,
+            detail: `发送到 CodeBuddy 失败（${failures.join('；')}）。请在设置中调整 baiwanyi.prompt.codebuddy.sendCommand / newChatCommand。`,
         }
     }
 
