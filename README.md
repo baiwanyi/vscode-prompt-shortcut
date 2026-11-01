@@ -76,10 +76,12 @@ CodeBuddy 未安装时扩展仍可运行，发送链路会降级为写剪贴板�
 ### 从源码运行（开发）
 
 ```bash
-git clone https://github.com/baiwanyi/vscode-prompt-shortcut.git
+gh repo clone baiwanyi/vscode-prompt-shortcut
 cd vscode-prompt-shortcut
 pnpm install
 ```
+
+未安装 GitHub CLI 时，把首行换成 `git clone https://github.com/baiwanyi/vscode-prompt-shortcut.git` 即可。
 
 PowerShell 下命令相同，若策略限制脚本执行，可使用 `pnpm.cmd install`。
 
