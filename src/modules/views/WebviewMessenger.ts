@@ -20,7 +20,7 @@ export interface WebviewMessengerHandlers {
 
 export class WebviewMessenger {
     private view: vscode.WebviewView | undefined
-    private isReady = false
+    private ready = false
     private isNewPromptPending = false
 
     constructor(private readonly extensionUri: vscode.Uri) {}
@@ -30,10 +30,15 @@ export class WebviewMessenger {
         return this.view !== undefined
     }
 
+    /** 是否完成 ready 握手：握手前下发的消息没有监听者，需要延后补发的调用方据此判断 */
+    get isReady(): boolean {
+        return this.ready
+    }
+
     /** 绑定视图：配置资源域、渲染 HTML，并注册消息与生命周期回调 */
     attach(view: vscode.WebviewView, handlers: WebviewMessengerHandlers): void {
         this.view = view
-        this.isReady = false
+        this.ready = false
         this.isNewPromptPending = false
         view.webview.options = {
             enableScripts: true,
@@ -45,7 +50,7 @@ export class WebviewMessenger {
         })
         view.onDidDispose(() => {
             this.view = undefined
-            this.isReady = false
+            this.ready = false
             this.isNewPromptPending = false
             handlers.onDispose()
         })
@@ -56,7 +61,7 @@ export class WebviewMessenger {
 
     /** 标记握手完成；补发走 flushPending，由调用方控制它与其他推送的先后顺序 */
     setReady(): void {
-        this.isReady = true
+        this.ready = true
     }
 
     /** 补发握手前登记的新建编辑器请求；无挂起时什么也不做 */
@@ -70,7 +75,7 @@ export class WebviewMessenger {
 
     /** 请求打开新建编辑器：未握手时先登记，等 ready 后补发，否则消息会被静默丢弃 */
     async openNewPrompt(): Promise<void> {
-        if (!this.view || !this.isReady) {
+        if (!this.view || !this.ready) {
             this.isNewPromptPending = true
             return
         }

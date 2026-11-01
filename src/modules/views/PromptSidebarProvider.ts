@@ -4,11 +4,12 @@
  * 视图装配、握手缓存与消息下发交给 WebviewMessenger，发送节奏交给 CodeBuddyAvailabilityPoller，
  * 本类只保留「拿到意图 → 调用领域逻辑 → 推回状态」这一条主线。
  * 注意：Webview 消息一律视为不可信输入，模板正文与 id 需重新校验后再落盘；
- * 探测期间视图可能被销毁，推送前要用 hasView 复核，避免向已释放的 webview 继续调度。
+ * 探测期间视图可能被销毁，推送前要用 hasView 复核，避免向已释放的 webview 继续调度；
+ * 握手前的下发统一走 pendingAfterReady：同步就绪播报与重置确认请求都经它排队，ready 后按序补发。
  */
 import * as vscode from 'vscode'
 import { WebviewMessenger } from './WebviewMessenger'
-import type { WebviewToHostMessage } from '../../shared/messages'
+import type { HostToWebviewMessage, WebviewToHostMessage } from '../../shared/messages'
 import type { PromptDraft, PromptStatePayload, PromptTemplate } from '../../shared/types'
 import type { CodeBuddyBridge } from '../codebuddy/CodeBuddyBridge'
 import type { PromptStore } from '../prompt/PromptStore'
@@ -16,7 +17,6 @@ import { describeError } from '../../shared/errors'
 import { checkCapacity, measurePromptsBytes } from '../../shared/promptCapacity'
 import { CodeBuddyAvailabilityPoller } from '../codebuddy/CodeBuddyAvailabilityPoller'
 import { dispatchPrompt } from '../codebuddy/dispatchPrompt'
-import { confirmAction } from '../common/confirm'
 import { parseDraft, resolveSendText, validateDraft } from '../prompt/draft'
 
 export class PromptSidebarProvider implements vscode.WebviewViewProvider {
@@ -27,6 +27,9 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
 
     /** 发送命令可用性的退避轮询：节奏与去重由该类托管，视图隐藏时暂停 */
     private readonly poller: CodeBuddyAvailabilityPoller
+
+    /** 握手后补发的消息队列：握手前 post 没有监听者，先排队，ready 时按登记顺序发出 */
+    private readonly pendingAfterReady: HostToWebviewMessage[] = []
 
     constructor(
         extensionUri: vscode.Uri,
@@ -76,15 +79,25 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
         await this.pushState()
     }
 
-    /** 恢复出厂提示词：整体重置只保留命令面板入口（破坏性大，不放进视图标题栏），条目内的单条恢复见 restorePromptById */
-    async resetWithConfirm(): Promise<void> {
-        const isConfirmed = await confirmAction('恢复默认提示词会删除全部自定义模板，是否继续？', '恢复默认')
-        if (!isConfirmed) {
-            return
-        }
-        await this.store.reset()
-        await this.pushState()
-        await this.messenger.notify('info', '已恢复默认提示词。')
+    /**
+     * 播报设置同步就绪：activate 在登记同步键与旧数据搬迁完成后调用。
+     * 条数在此刻求值并入队，握手后才下发，避免首屏状态推送把它挤掉。
+     */
+    announceSyncReady(): void {
+        this.enqueueAfterReady({
+            type: 'notify',
+            level: 'info',
+            message: `设置同步已就绪，共 ${this.store.getAll().length} 条提示词参与了 Settings Sync。`,
+        })
+    }
+
+    /**
+     * 恢复出厂提示词：整体重置只保留命令面板入口（破坏性大，不放进视图标题栏）。
+     * 二次确认交给面板内的 dialog——命令入口先叫出面板，再把确认请求排队下发；
+     * 条目内的单条恢复见 restorePromptById。
+     */
+    resetWithConfirm(): void {
+        this.enqueueAfterReady({ type: 'confirmResetAll' })
     }
 
     /**
@@ -100,7 +113,7 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
         return target
     }
 
-    /** 恢复单条内置模板：先确认再执行，避免顺手点错丢掉已改的正文 */
+    /** 恢复单条内置模板：二次确认已由面板内的 dialog 完成，这里只复核模板仍存在且为内置 */
     private async restorePromptById(id: string): Promise<void> {
         const target = await this.requirePrompt(id)
         if (!target) {
@@ -110,13 +123,16 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
             await this.messenger.notify('warn', '自定义提示词没有出厂内容，无法恢复默认。')
             return
         }
-        const isConfirmed = await confirmAction(`将「${target.label}」恢复为默认内容？当前的修改会丢失。`, '恢复')
-        if (!isConfirmed) {
-            return
-        }
         await this.store.restoreBuiltin(id)
         await this.pushState()
         await this.messenger.notify('info', `已恢复「${target.label}」的默认内容。`)
+    }
+
+    /** 整体重置：只在面板内确认后到达，不再二次反问，直接落盘并回推 */
+    private async resetAll(): Promise<void> {
+        await this.store.reset()
+        await this.pushState()
+        await this.messenger.notify('info', '已恢复默认提示词。')
     }
 
     /** 消息路由：只负责分发，具体动作各自成方法，便于单点修改与阅读 */
@@ -155,6 +171,10 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
                 await this.restorePromptById(message.id)
                 break
             }
+            case 'resetAll': {
+                await this.resetAll()
+                break
+            }
             default: {
                 const exhaustive: never = message
                 throw new Error(`未处理的消息类型：${JSON.stringify(exhaustive)}`)
@@ -162,11 +182,30 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    /** ready 握手：标记可推送，再补发握手期间登记的新建编辑器请求 */
+    /** ready 握手：标记可推送，再补发握手期间登记的请求与提示，顺序保证首屏状态先到 */
     private async handleReady(): Promise<void> {
         this.messenger.setReady()
         await this.pushState()
         await this.messenger.flushPending()
+        await this.flushAfterReady()
+    }
+
+    /** 登记一条握手后再下发的消息：已握手时立即发出，否则留在队列等 handleReady 消费 */
+    private enqueueAfterReady(message: HostToWebviewMessage): void {
+        this.pendingAfterReady.push(message)
+        void this.flushAfterReady()
+    }
+
+    /** 按登记顺序发出排队的消息；未握手时原样保留，等下一次握手再补发 */
+    private async flushAfterReady(): Promise<void> {
+        if (!this.messenger.isReady || this.pendingAfterReady.length === 0) {
+            return
+        }
+        // 先整批取出再逐条下发：下发过程中新登记的消息排到队尾，不会打乱本轮顺序
+        const queued = this.pendingAfterReady.splice(0)
+        for (const message of queued) {
+            await this.messenger.post(message)
+        }
     }
 
     /** 请求刷新：先归零轮询计数，避免沿用上一轮的退避进度 */

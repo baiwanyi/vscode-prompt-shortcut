@@ -32,12 +32,26 @@ function notify(level: FeedbackLevel, message: string): void {
     vscode.window.setStatusBarMessage(`提示词快捷方式：${message}`, 4000)
 }
 
+/**
+ * 展开侧边栏并聚焦视图。
+ * 先用视图级 focus 命令：它由 VS Code 为每个已注册视图提供，容器未展开时会一并显示；
+ * 容器级 workbench.view.extension.* 只在容器注册成功时才存在（容器 id 被重复声明时该命令会缺失），
+ * 因此降为兜底并各自吞掉失败，避免把内部命令名弹给用户。
+ */
 async function revealSidebar(): Promise<void> {
-    await vscode.commands.executeCommand(`workbench.view.extension.${SIDEBAR_CONTAINER_ID}`)
     try {
         await vscode.commands.executeCommand(`${SIDEBAR_VIEW_ID}.focus`)
+        return
     } catch {
-        // 视图尚未渲染时 focus 会失败，此时容器已展开，忽略即可
+        // 视图尚未注册时 focus 不可用，继续尝试容器级命令
+    }
+    try {
+        await vscode.commands.executeCommand(`workbench.view.extension.${SIDEBAR_CONTAINER_ID}`)
+    } catch {
+        // 两个入口都不可用：活动栏图标仍可手动展开，这里给出可操作提示而不是抛出内部命令名
+        void vscode.window.showWarningMessage(
+            '无法自动展开提示词面板，请点击活动栏的「提示词快捷方式」图标；若图标缺失，请检查是否同时安装了旧版扩展。',
+        )
     }
 }
 
@@ -82,13 +96,16 @@ export function activate(context: vscode.ExtensionContext): void {
     // 登记同步键：用户开启 Settings Sync 后，提示词随设置一起在多台设备间同步
     context.globalState.setKeysForSync([PROMPT_STORAGE_KEY])
     const store = new PromptStore(context.globalState)
-    // 旧版存储键（webianPrompt.templates.v1）的数据在激活期搬入新键，不依赖用户先展开面板
-    void store.migrateLegacyStorage()
     // 桥接层按需创建排障日志通道，释放动作统一挂到扩展上下文
     const bridge = new CodeBuddyBridge(resolveBridgeConfig, (disposable): void => {
         context.subscriptions.push(disposable)
     })
     const provider = new PromptSidebarProvider(context.extensionUri, store, bridge)
+    // 旧版存储键（webianPrompt.templates.v1）的数据在激活期搬入新键，不依赖用户先展开面板；
+    // 搬迁完成即同步口径就绪，据此让面板以 toast 提醒一次（面板未打开时由 ready 握手补发）
+    void store.migrateLegacyStorage().then(() => {
+        provider.announceSyncReady()
+    })
 
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(SIDEBAR_VIEW_ID, provider, {
@@ -110,7 +127,7 @@ export function activate(context: vscode.ExtensionContext): void {
         }),
         vscode.commands.registerCommand('baiwanyi.prompt.reset', async () => {
             await revealSidebar()
-            await provider.resetWithConfirm()
+            provider.resetWithConfirm()
         }),
     )
 

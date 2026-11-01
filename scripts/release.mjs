@@ -86,7 +86,8 @@ if (branch !== 'main') {
 }
 
 console.log(`→ 打包 ${tag}`)
-run('pnpm run package')
+// --no-install：发布只取 vsix 产物，不把包顺带装进跑发布流程的这台机器
+run('pnpm run package -- --no-install')
 if (!existsSync(join(ROOT, vsix))) {
     fail(`没有生成 ${vsix}，检查 vsce package 的输出`)
 }

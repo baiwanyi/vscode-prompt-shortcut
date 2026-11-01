@@ -18,8 +18,10 @@ export type WebviewToHostMessage =
       }
     | { type: 'deletePrompt'; id: string }
     | { type: 'movePrompt'; id: string; direction: MoveDirection }
-    /** 把单条内置模板恢复为出厂定义 */
+    /** 把单条内置模板恢复为出厂定义；二次确认已由面板内的 dialog 完成 */
     | { type: 'resetPrompt'; id: string }
+    /** 面板内确认后执行整体重置：命令面板入口只负责叫出面板，确认动作留在面板里 */
+    | { type: 'resetAll' }
 
 /** 宿主 -> Webview */
 export type HostToWebviewMessage =
@@ -29,3 +31,5 @@ export type HostToWebviewMessage =
     | { type: 'editPrompt' }
     /** 轮询次数耗尽仍未检测到 CodeBuddy，Webview 据此弹出带「刷新」按钮的常驻提示 */
     | { type: 'codebuddyMissing' }
+    /** 请求面板弹出「恢复全部默认」的确认框：命令面板入口不在面板内，二次确认交给面板的 dialog */
+    | { type: 'confirmResetAll' }

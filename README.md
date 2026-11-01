@@ -36,11 +36,16 @@
 3. `pnpm run compile`
 4. 在 VS Code 中按 `F5` 启动扩展开发宿主
 
-安装打包产物：
+安装本地打包产物（VSIX 安装后默认不自动更新，升级需重新安装）：
 
 ```bash
 pnpm run package
-code --install-extension releases/vscode-prompt-shortcut-0.1.0.vsix
+```
+
+打包完成后脚本会自动执行 `code --install-extension` 覆盖安装，重载窗口即生效。若 `code` 命令不在 PATH 中，脚本会提示并跳过安装（产物照常生成），此时手动安装：
+
+```bash
+code --install-extension releases/prompt-shortcut-<version>.vsix
 ```
 
 ### 发送一条提示词
@@ -144,7 +149,7 @@ pnpm run compile   # tsc --noEmit + esbuild + vite build
 | `pnpm run watch` | 三路监听：类型检查、宿主打包、Webview 打包 |
 | `pnpm run lint` | ESLint 全量检查 |
 | `pnpm run verify` | 类型检查 + ESLint + Prettier 格式校验 |
-| `pnpm run package` | 编译并输出 VSIX 到 `releases/` |
+| `pnpm run package` | 编译、输出 VSIX 到 `releases/` 并安装到本机（`--no-install` 可跳过安装） |
 | `pnpm run release` | 打包、推 tag 并发布到 GitHub Release（需 `gh auth login`） |
 
 -----
