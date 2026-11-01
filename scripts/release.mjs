@@ -2,19 +2,40 @@
  * 发布到 GitHub Release：整理提交记录、打包 vsix、推送 tag，再调用 gh 创建带附件的 Release。
  * 用 Node 脚本而非 npm script 串联，避免 cmd 与 bash 对 $npm_package_version 的展开差异；
  * 发布前校验工作区是否干净、tag 是否指向 HEAD、Release 是否已存在，防止把未提交的代码打进包或覆盖已有版本。
+ * 变更说明就地整理：按 Conventional Commits 前缀分组，过滤发布流程自身产生的提交，正文沿用提交里的中文原文。
  * tag 一律建为附注标签：message 复用本版变更摘要（同一个文件随后交给 gh --notes-file），
  * 保证 git 侧 `git tag -n` 与 Release 页面看到的内容一致，历史版本也能查到当时改了什么。
- * 注意：需要先完成 gh auth login；本脚本只产出 GitHub Release（vsix + 变更说明），上架与更新由市场承担，需另跑 vsce publish。
+ * 注意：需要先完成 gh auth login；本脚本只产出 GitHub Release（vsix + 变更说明），上架市场由 pnpm run market 承担。
  */
 import { execSync } from 'node:child_process'
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildReleaseNotes } from './release-notes.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const ALLOW_DIRTY = process.argv.includes('--allow-dirty')
+
+/** 前缀到分组标题的映射，数组顺序即 notes 的输出顺序 */
+const CATEGORY_TITLES = [
+    ['feat', '新功能'],
+    ['fix', '修复'],
+    ['perf', '性能'],
+    ['refactor', '重构'],
+    ['docs', '文档'],
+    ['test', '测试'],
+    ['build', '构建'],
+    ['ci', '持续集成'],
+]
+
+/** 未列出的前缀（chore、style、revert 等）与不符合约定的标题统一落到这里 */
+const OTHER_TITLE = '其他'
+
+/** 发布流程自身的提交：发布版本号、同步更新清单，都不该出现在本版变更里 */
+const RELEASE_NOISE = /^chore(?:\([^)]*\))?:\s*(?:发布|更新版本清单)/u
+
+/** 解析 `type(scope)!: 描述`，不符合规范时返回 null 交给兜底 */
+const COMMIT_PATTERN = /^([a-zA-Z]+)(?:\([^)]*\))?!?:\s*(.+)$/u
 
 /** 执行并继承输出：打包与 gh 的日志要原样透给用户 */
 function run(command) {
@@ -40,10 +61,48 @@ function findPreviousTag(currentTag) {
     return tags[0] ?? ''
 }
 
-/** 收集区间内的提交标题，交由 release-notes 分组；rev 传 HEAD 时可在 tag 建立前取到本版内容 */
+/** 收集区间内的提交标题，交由 buildReleaseNotes 分组；rev 传 HEAD 时可在 tag 建立前取到本版内容 */
 function collectSubjects(previousTag, rev) {
     const range = previousTag ? `${previousTag}..${rev}` : rev
     return capture(`git log ${range} --pretty=format:%s`).split(/\r?\n/u)
+}
+
+/** 把一条标题拆成「分组 + 描述」，无法识别类型时整条归入「其他」 */
+function parseSubject(subject) {
+    const match = COMMIT_PATTERN.exec(subject)
+    if (!match) {
+        return { title: OTHER_TITLE, summary: subject }
+    }
+    const [, type, summary] = match
+    const known = CATEGORY_TITLES.find(([prefix]) => prefix === type)
+    return { title: known ? known[1] : OTHER_TITLE, summary }
+}
+
+/** 生成 markdown：只输出命中的分组，避免出现一堆空标题；无可用条目时返回空串，由调用方回退到自动生成 */
+function buildReleaseNotes(subjects) {
+    const groups = new Map()
+    for (const subject of subjects) {
+        const trimmed = subject.trim()
+        if (!trimmed || trimmed.startsWith('Merge ') || RELEASE_NOISE.test(trimmed)) {
+            continue
+        }
+        const { title, summary } = parseSubject(trimmed)
+        const list = groups.get(title) ?? []
+        list.push(summary)
+        groups.set(title, list)
+    }
+    if (groups.size === 0) {
+        return ''
+    }
+    const lines = ['## 变更内容', '']
+    for (const [, title] of [...CATEGORY_TITLES, [undefined, OTHER_TITLE]]) {
+        const list = groups.get(title)
+        if (!list) {
+            continue
+        }
+        lines.push(`### ${title}`, ...list.map((item) => `- ${item}`), '')
+    }
+    return lines.join('\n').trim()
 }
 
 const manifest = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))

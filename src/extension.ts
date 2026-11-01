@@ -103,11 +103,8 @@ export function activate(context: vscode.ExtensionContext): void {
         context.subscriptions.push(disposable)
     })
     const provider = new PromptSidebarProvider(context.extensionUri, store, bridge)
-    // 旧版存储键（webianPrompt.templates.v1）的数据在激活期搬入新键，不依赖用户先展开面板；
-    // 搬迁完成即同步口径就绪，据此让面板以 toast 提醒一次（面板未打开时由 ready 握手补发）
-    void store.migrateLegacyStorage().then(() => {
-        provider.announceSyncReady()
-    })
+    // 登记同步键后同步口径即就绪，据此让面板以 toast 提醒一次（面板未打开时由 ready 握手补发）
+    provider.announceSyncReady()
 
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(SIDEBAR_VIEW_ID, provider, {
