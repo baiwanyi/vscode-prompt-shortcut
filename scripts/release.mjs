@@ -2,6 +2,8 @@
  * 发布到 GitHub Release：整理提交记录、打包 vsix、推送 tag，再调用 gh 创建带附件的 Release。
  * 用 Node 脚本而非 npm script 串联，避免 cmd 与 bash 对 $npm_package_version 的展开差异；
  * 发布前校验工作区是否干净、tag 是否指向 HEAD、Release 是否已存在，防止把未提交的代码打进包或覆盖已有版本。
+ * tag 一律建为附注标签：message 复用本版变更摘要（同一个文件随后交给 gh --notes-file），
+ * 保证 git 侧 `git tag -n` 与 Release 页面看到的内容一致，历史版本也能查到当时改了什么。
  * 注意：需要先完成 gh auth login；脚本不会改 update.json，发布后要手动同步版本号。
  */
 import { execSync } from 'node:child_process'
@@ -38,9 +40,9 @@ function findPreviousTag(currentTag) {
     return tags[0] ?? ''
 }
 
-/** 收集区间内的提交标题，交由 release-notes 分组 */
-function collectSubjects(previousTag, currentTag) {
-    const range = previousTag ? `${previousTag}..${currentTag}` : currentTag
+/** 收集区间内的提交标题，交由 release-notes 分组；rev 传 HEAD 时可在 tag 建立前取到本版内容 */
+function collectSubjects(previousTag, rev) {
+    const range = previousTag ? `${previousTag}..${rev}` : rev
     return capture(`git log ${range} --pretty=format:%s`).split(/\r?\n/u)
 }
 
@@ -89,19 +91,21 @@ if (!existsSync(join(ROOT, vsix))) {
     fail(`没有生成 ${vsix}，检查 vsce package 的输出`)
 }
 
-console.log(`→ 推送分支与 tag`)
-run(`git push origin ${branch}`)
-if (!tagExists) {
-    run(`git tag ${tag}`)
-}
-run(`git push origin ${tag}`)
-
+// 摘要要在打 tag 之前算好：附注标签的 message 直接用这份内容，随 tag 一起推送
 const previousTag = findPreviousTag(tag)
-const notes = buildReleaseNotes(collectSubjects(previousTag, tag))
+const notes = buildReleaseNotes(collectSubjects(previousTag, 'HEAD'))
 const notesPath = join(tmpdir(), `vscode-prompt-shortcut-release-notes-${version}.md`)
 if (notes) {
     writeFileSync(notesPath, notes, 'utf8')
 }
+
+console.log(`→ 推送分支与 tag`)
+run(`git push origin ${branch}`)
+if (!tagExists) {
+    // 附注标签（-a）：没有摘要时至少写上版本号，避免退回无信息的轻量标签
+    run(notes ? `git tag -a ${tag} -F "${notesPath}"` : `git tag -a ${tag} -m ${tag}`)
+}
+run(`git push origin ${tag}`)
 
 console.log(`→ 创建 GitHub Release ${tag}`)
 try {
