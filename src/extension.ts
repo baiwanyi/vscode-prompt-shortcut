@@ -82,6 +82,8 @@ export function activate(context: vscode.ExtensionContext): void {
     // 登记同步键：用户开启 Settings Sync 后，提示词随设置一起在多台设备间同步
     context.globalState.setKeysForSync([PROMPT_STORAGE_KEY])
     const store = new PromptStore(context.globalState)
+    // 旧版存储键（webianPrompt.templates.v1）的数据在激活期搬入新键，不依赖用户先展开面板
+    void store.migrateLegacyStorage()
     // 桥接层按需创建排障日志通道，释放动作统一挂到扩展上下文
     const bridge = new CodeBuddyBridge(resolveBridgeConfig, (disposable): void => {
         context.subscriptions.push(disposable)

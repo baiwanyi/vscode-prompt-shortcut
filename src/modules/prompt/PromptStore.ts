@@ -4,6 +4,7 @@
  * 该键已在 activate 中登记给 Settings Sync，用户开启同步后可在多台设备间共享；
  * 读取时统一做归一化：补齐被删除的内置模板、剔除结构非法的历史数据，避免脏数据进入 Webview。
  * 顺序以持久化数组为准——用户的排序结果必须保留，只有缺失的内置模板才按出厂顺序补回列表头部。
+ * 旧键（LEGACY_PROMPT_STORAGE_KEY）只在迁移期读取：搬到新键后立即删除，日常读写一律不碰旧键。
  * 注意：所有写操作返回最新列表并立即落盘，调用方不要缓存旧引用；内置模板只允许改文案，不允许删除。
  */
 import { BUILTIN_PROMPT_IDS, createBuiltinPrompts } from './defaults'
@@ -15,9 +16,15 @@ import { isChatMode, isPromptIconKey } from '../../shared/types'
 
 /**
  * 存储键：既是 globalState 的读写键，也是登记给 Settings Sync 的同步键（见 activate）。
- * 注意：键名沿用旧前缀且不随扩展标识改名——换键会让已存模板全部读不到，等同于用户数据丢失。
+ * 注意：键名一旦发布就不能再改——换键会让已存模板全部读不到，等同于用户数据丢失。
  */
-export const PROMPT_STORAGE_KEY = 'webianPrompt.templates.v1'
+export const PROMPT_STORAGE_KEY = 'baiwanyi.prompt.templates.v1'
+
+/**
+ * 旧版存储键（早期沿用 webianPrompt 前缀），仅用于一次性迁移。
+ * 迁移成功即删除该键；残留于已同步设备的旧数据由各端首次激活时各自搬迁，故常量不可提前移除。
+ */
+export const LEGACY_PROMPT_STORAGE_KEY = 'webianPrompt.templates.v1'
 
 /** 把外部输入收敛为一条可信模板，非法字段一律回落到安全默认值 */
 function normalizeTemplate(raw: unknown, index: number): PromptTemplate | null {
@@ -43,8 +50,68 @@ function normalizeTemplate(raw: unknown, index: number): PromptTemplate | null {
     }
 }
 
+/** 把任意数组收敛为可信模板列表：逐条归一化，重复 id 只保留首个 */
+function normalizeList(raw: readonly unknown[]): PromptTemplate[] {
+    const seenIds = new Set<string>()
+    const result: PromptTemplate[] = []
+    raw.forEach((item, index) => {
+        const template = normalizeTemplate(item, index)
+        if (!template || seenIds.has(template.id)) {
+            return
+        }
+        seenIds.add(template.id)
+        result.push(template)
+    })
+    return result
+}
+
 export class PromptStore {
+    /** 迁移进行中的 Promise：激活期与首次读档可能同时触发，据此复用同一次写盘 */
+    private legacyMigration: Promise<void> | null = null
+
     constructor(private readonly memento: vscode.Memento) {}
+
+    /**
+     * 把旧键里的模板搬到新键，成功后删除旧键；供 activate 在登记同步键后主动调用。
+     * 写盘前会复核新键仍为空——若期间已写入新数据（例如用户刚好保存过模板），只清旧键不覆盖。
+     */
+    async migrateLegacyStorage(): Promise<void> {
+        if (this.legacyMigration) {
+            return this.legacyMigration
+        }
+        const legacy = this.memento.get<unknown>(LEGACY_PROMPT_STORAGE_KEY)
+        if (!Array.isArray(legacy)) {
+            return
+        }
+        const migration = this.runMigration(legacy)
+            .catch(() => {
+                // 写盘失败不打断读档：旧键仍在，下次激活或读档会重新尝试
+            })
+            .finally(() => {
+                this.legacyMigration = null
+            })
+        this.legacyMigration = migration
+        return migration
+    }
+
+    private async runMigration(legacy: readonly unknown[]): Promise<void> {
+        if (!Array.isArray(this.memento.get<unknown>(PROMPT_STORAGE_KEY))) {
+            await this.memento.update(PROMPT_STORAGE_KEY, normalizeList(legacy))
+        }
+        await this.memento.update(LEGACY_PROMPT_STORAGE_KEY, undefined)
+    }
+
+    /**
+     * 待迁移的旧数据：新键已有数组即视为已迁移，返回 null。
+     * 据此即使用户清空过自定义模板，也不会被旧键里的历史数据回灌。
+     */
+    private legacyPendingData(): unknown[] | null {
+        if (Array.isArray(this.memento.get<unknown>(PROMPT_STORAGE_KEY))) {
+            return null
+        }
+        const legacy = this.memento.get<unknown>(LEGACY_PROMPT_STORAGE_KEY)
+        return Array.isArray(legacy) ? legacy : null
+    }
 
     /**
      * 读取并归一化模板列表。
@@ -53,11 +120,8 @@ export class PromptStore {
      */
     getAll(): PromptTemplate[] {
         const raw = this.memento.get<unknown>(PROMPT_STORAGE_KEY)
-        const stored = Array.isArray(raw)
-            ? raw
-                  .map((item, index) => normalizeTemplate(item, index))
-                  .filter((item): item is PromptTemplate => item !== null)
-            : []
+        // 新键尚未落盘时先按旧键数据渲染，避免升级后首次展开面板显示成出厂内容
+        const stored = Array.isArray(raw) ? normalizeList(raw) : this.takeLegacyPrompts()
 
         const storedIds = new Set(stored.map((item) => item.id))
         const missingBuiltins = createBuiltinPrompts().filter((item) => !storedIds.has(item.id))
@@ -72,6 +136,16 @@ export class PromptStore {
             result.push(item)
         }
         return result
+    }
+
+    /** 无新键数据时改读旧键，并顺手触发迁移；返回值只用于本轮渲染，落盘由迁移完成 */
+    private takeLegacyPrompts(): PromptTemplate[] {
+        const legacy = this.legacyPendingData()
+        if (!legacy) {
+            return []
+        }
+        void this.migrateLegacyStorage()
+        return normalizeList(legacy)
     }
 
     /** 按 id 取单条模板；不存在时返回 undefined，由调用方决定提示文案与后续动作 */
