@@ -21,7 +21,7 @@ export function PanelHeaderCapacity({ usedBytes }: PanelHeaderCapacityProps): JS
     return (
         <Tooltip>
             <TooltipTrigger asChild>
-                <Badge variant={percent >= FULL_PERCENT ? 'destructive' : 'outline'}>{percent}%</Badge>
+                <Badge variant={percent >= FULL_PERCENT ? 'destructive' : 'outline'} className="cursor-pointer hover:border-primary">{percent}%</Badge>
             </TooltipTrigger>
             <TooltipContent side="bottom">
                 已用 {capacityKb(usedBytes)} KB / {CAPACITY_LIMIT_KB} KB
