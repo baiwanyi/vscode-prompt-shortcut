@@ -1,4 +1,4 @@
-# VSCode Prompt Shortcut
+# Prompt Shortcut for VSCode
 
 > CodeBuddy 代码开发提示词快捷方式 VSCode 扩展
 

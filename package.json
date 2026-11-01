@@ -1,9 +1,9 @@
 {
     "$schema": "https://json.schemastore.org/package.json",
-    "name": "vscode-prompt-shortcut",
-    "displayName": "VSCode Prompt Shortcut",
+    "name": "prompt-shortcut",
+    "displayName": "Prompt Shortcut for VSCode",
     "description": "CodeBuddy 代码开发提示词快捷方式",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "publisher": "Baiwanyi",
     "license": "MIT",
     "repository": {
