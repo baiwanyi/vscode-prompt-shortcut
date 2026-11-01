@@ -3,7 +3,7 @@
  * 只负责展示与回调：条目 id 由调用方在回调里绑定，因此本组件不依赖 PromptTemplate 的结构。
  * 菜单项用配置数组渲染，分组由 isGroupStart 标记，新增一项只改数组一处。
  * 注意：下拉内容由 Radix Portal 渲染到 body 下，天然不会冒泡到整行的点击处理；
- * 而触发按钮仍在原 DOM 树内，必须阻止冒泡，否则点开菜单会连带触发一次发送。
+ * 触发按钮仍在原 DOM 树内，除了自身阻止冒泡，还要把开合事件交给调用方去挡住点击穿透。
  */
 import { ArrowDown, ArrowUp, Copy, MoreHorizontal, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 import { Fragment } from 'react'
@@ -40,8 +40,8 @@ export interface PromptItemMenuProps {
     onMove: (direction: MoveDirection) => void
     onRestore: () => void
     onDelete: () => void
-    /** 菜单展开时通知调用方，通常用于撤销待发状态 */
-    onOpen: () => void
+    /** 菜单开合通知：展开时撤销待发状态，收起时也要让调用方挡住点击穿透 */
+    onOpenChange: (open: boolean) => void
 }
 
 export function PromptItemMenu({
@@ -53,7 +53,7 @@ export function PromptItemMenu({
     onMove,
     onRestore,
     onDelete,
-    onOpen,
+    onOpenChange,
 }: PromptItemMenuProps): JSX.Element {
     const entries: MenuEntry[] = [
         { key: 'edit', icon: Pencil, label: '编辑', onSelect: onEdit },
@@ -90,13 +90,7 @@ export function PromptItemMenu({
     ]
 
     return (
-        <DropdownMenu
-            onOpenChange={(open): void => {
-                if (open) {
-                    onOpen()
-                }
-            }}
-        >
+        <DropdownMenu onOpenChange={onOpenChange}>
             <DropdownMenuTrigger asChild>
                 <Button
                     variant="ghost"
