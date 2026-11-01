@@ -7,11 +7,12 @@
  * 否则「点更多」会被当成一次发送；位置能力由列表通过 canMove 注入，条目自身不保存序号。
  */
 import { cn } from 'cn'
-import { ChevronRight, Timer } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { useRef } from 'react'
 import { PromptItemMenu } from '@components/PromptItemMenu'
 import { Badge } from '@components/ui/badge'
 import { Item, ItemActions, ItemContent, ItemMedia, ItemTitle } from '@components/ui/item'
+import { Spinner } from '@components/ui/spinner'
 import type { MoveDirection, PromptTemplate } from '@shared/types'
 import { useDelayedAction } from '@webview/hooks/useDelayedAction'
 import { PROMPT_ICON_MAP } from '@webview/lib/icons'
@@ -106,7 +107,7 @@ export function PromptItem({
                 />
             </ItemActions>
             {isPending ? (
-                <Timer className="size-3.5 shrink-0 animate-pulse text-foreground" />
+                <Spinner className="size-3.5 shrink-0 text-foreground" />
             ) : (
                 <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
             )}
