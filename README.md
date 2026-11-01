@@ -105,15 +105,14 @@ code --install-extension releases/vscode-prompt-shortcut-0.1.0.vsix
 | `baiwanyi.prompt.codebuddy.mode` | `craft` | 右键动作未预设模式时的默认模式（`craft`/`ask`/`plan`） |
 | `baiwanyi.prompt.codebuddy.autoSend` | `true` | 关闭后不发送，只写剪贴板并聚焦对话框 |
 | `baiwanyi.prompt.codebuddy.fallbackToClipboard` | `true` | 发送命令不可用时是否降级为写剪贴板 |
-| `baiwanyi.prompt.update.checkOnStartup` | `true` | 启动时是否检查新版本，失败静默 |
-| `baiwanyi.prompt.update.manifestUrl` | 仓库 `update.json` 地址 | 更新清单地址，仅接受 `https`，留空即关闭检查 |
+| `baiwanyi.prompt.update.checkOnStartup` | `false` | 是否在启动时检查自建清单；市场安装的版本由 VS Code 自动更新 |
+| `baiwanyi.prompt.update.manifestUrl` | 空 | 自建更新清单地址，仅接受 `https`；仅在内网、离线等绕开市场的场景填写 |
 
 ```json
 {
     "baiwanyi.prompt.codebuddy.reuseConversation": true,
     "baiwanyi.prompt.codebuddy.mode": "ask",
-    "baiwanyi.prompt.codebuddy.autoSend": true,
-    "baiwanyi.prompt.update.checkOnStartup": true
+    "baiwanyi.prompt.codebuddy.autoSend": true
 }
 ```
 

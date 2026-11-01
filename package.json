@@ -206,13 +206,13 @@
                 },
                 "baiwanyi.prompt.update.checkOnStartup": {
                     "type": "boolean",
-                    "default": true,
-                    "markdownDescription": "启动时是否检查新版本。检查失败会静默降级，不影响扩展使用。"
+                    "default": false,
+                    "markdownDescription": "是否在启动时检查自建清单里的新版本。市场安装的版本由 VS Code 自动更新，通常无需开启。"
                 },
                 "baiwanyi.prompt.update.manifestUrl": {
                     "type": "string",
-                    "default": "https://raw.githubusercontent.com/baiwanyi/vscode-prompt-shortcut/main/update.json",
-                    "markdownDescription": "更新清单地址，需返回含 `version` 与 `url` 的 JSON（仅接受 https）。留空则关闭检查；GitHub 访问受限时可改为镜像或内网地址。"
+                    "default": "",
+                    "markdownDescription": "自建更新清单地址，需返回含 `version` 与 `url` 的 JSON（仅接受 https）。默认留空；仅在绕开市场分发（内网、离线镜像）时才需要填写。"
                 }
             }
         }
