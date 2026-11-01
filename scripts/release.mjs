@@ -4,7 +4,7 @@
  * 发布前校验工作区是否干净、tag 是否指向 HEAD、Release 是否已存在，防止把未提交的代码打进包或覆盖已有版本。
  * tag 一律建为附注标签：message 复用本版变更摘要（同一个文件随后交给 gh --notes-file），
  * 保证 git 侧 `git tag -n` 与 Release 页面看到的内容一致，历史版本也能查到当时改了什么。
- * 注意：需要先完成 gh auth login；脚本不会改 update.json，发布后要手动同步版本号。
+ * 注意：需要先完成 gh auth login；本脚本只产出 GitHub Release（vsix + 变更说明），上架与更新由市场承担，需另跑 vsce publish。
  */
 import { execSync } from 'node:child_process'
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
@@ -120,4 +120,4 @@ try {
 }
 
 console.log(`\n✓ 已发布 ${tag}`)
-console.log(`下一步：把 update.json 的 version 改为 ${version} 并提交，url 保持 releases/latest 即可。`)
+console.log(`下一步：pnpm exec vsce publish --packagePath ${vsix} --no-dependencies 上架市场，此后由市场自动推送更新。`)
