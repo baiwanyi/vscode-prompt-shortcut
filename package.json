@@ -62,27 +62,27 @@
             {
                 "command": "baiwanyi.prompt.fixWithCodeBuddy",
                 "title": "修复",
-                "category": "快捷命令"
+                "category": "提示词快捷方式"
             },
             {
                 "command": "baiwanyi.prompt.reviewWithCodeBuddy",
                 "title": "审查",
-                "category": "快捷命令"
+                "category": "提示词快捷方式"
             },
             {
                 "command": "baiwanyi.prompt.optimizeWithCodeBuddy",
                 "title": "优化",
-                "category": "快捷命令"
+                "category": "提示词快捷方式"
             },
             {
                 "command": "baiwanyi.prompt.styleWithCodeBuddy",
                 "title": "规范",
-                "category": "快捷命令"
+                "category": "提示词快捷方式"
             },
             {
                 "command": "baiwanyi.prompt.refactorWithCodeBuddy",
                 "title": "重构",
-                "category": "快捷命令"
+                "category": "提示词快捷方式"
             }
         ],
         "submenus": [
