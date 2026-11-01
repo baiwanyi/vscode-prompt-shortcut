@@ -92,17 +92,8 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
     }
 
     /**
-     * 恢复出厂提示词：整体重置只保留命令面板入口（破坏性大，不放进视图标题栏）。
-     * 二次确认交给面板内的 dialog——命令入口先叫出面板，再把确认请求排队下发；
-     * 条目内的单条恢复见 restorePromptById。
-     */
-    resetWithConfirm(): void {
-        this.enqueueAfterReady({ type: 'confirmResetAll' })
-    }
-
-    /**
      * 按 id 取模板，查不到就提示并返回 undefined。
-     * 发送、复制、删除、恢复四个入口共用同一文案，避免同一句提示散落多处后改漏。
+     * 发送、复制、删除三个入口共用同一文案，避免同一句提示散落多处后改漏。
      */
     private async requirePrompt(id: string): Promise<PromptTemplate | undefined> {
         const target = this.store.get(id)
@@ -111,28 +102,6 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
             return undefined
         }
         return target
-    }
-
-    /** 恢复单条内置模板：二次确认已由面板内的 dialog 完成，这里只复核模板仍存在且为内置 */
-    private async restorePromptById(id: string): Promise<void> {
-        const target = await this.requirePrompt(id)
-        if (!target) {
-            return
-        }
-        if (!target.builtin) {
-            await this.messenger.notify('warn', '自定义提示词没有出厂内容，无法恢复默认。')
-            return
-        }
-        await this.store.restoreBuiltin(id)
-        await this.pushState()
-        await this.messenger.notify('info', `已恢复「${target.label}」的默认内容。`)
-    }
-
-    /** 整体重置：只在面板内确认后到达，不再二次反问，直接落盘并回推 */
-    private async resetAll(): Promise<void> {
-        await this.store.reset()
-        await this.pushState()
-        await this.messenger.notify('info', '已恢复默认提示词。')
     }
 
     /** 消息路由：只负责分发，具体动作各自成方法，便于单点修改与阅读 */
@@ -165,14 +134,6 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
             case 'movePrompt': {
                 await this.store.move(message.id, message.direction)
                 await this.pushState()
-                break
-            }
-            case 'resetPrompt': {
-                await this.restorePromptById(message.id)
-                break
-            }
-            case 'resetAll': {
-                await this.resetAll()
                 break
             }
             default: {
@@ -248,14 +209,10 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
         await this.messenger.notify('info', isExisting ? '提示词已更新。' : '提示词已创建。')
     }
 
-    /** 删除自定义模板：内置模板拒绝删除并给出替代路径 */
+    /** 删除单条模板：预设与自建一视同仁，删除后不再回灌 */
     private async deletePromptById(id: string): Promise<void> {
         const target = await this.requirePrompt(id)
         if (!target) {
-            return
-        }
-        if (target.builtin) {
-            await this.messenger.notify('warn', '内置提示词不可删除，可编辑其正文后使用。')
             return
         }
         await this.store.remove(id)

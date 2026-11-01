@@ -10,7 +10,7 @@ import type { PromptDraft, PromptTemplate } from '@shared/types'
 import { useHostMessages } from '@webview/hooks/useHostMessages'
 import { postToHost } from '@webview/lib/vscode'
 
-/** 从完整模板裁出可编辑字段，不把 builtin 与时间戳带进表单状态 */
+/** 从完整模板裁出可编辑字段，不把时间戳带进表单状态 */
 function toDraft(prompt: PromptTemplate): PromptDraft {
     return {
         id: prompt.id,

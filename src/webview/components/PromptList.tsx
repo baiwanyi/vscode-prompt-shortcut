@@ -23,8 +23,6 @@ interface PromptListProps {
     onCopy: (id: string) => void
     onEdit: (id: string) => void
     onDelete: (id: string) => void
-    /** 仅内置模板可用：把该条恢复为出厂内容 */
-    onRestore: (id: string) => void
     onMove: (id: string, direction: MoveDirection) => void
 }
 
@@ -36,7 +34,6 @@ export function PromptList({
     onCopy,
     onEdit,
     onDelete,
-    onRestore,
     onMove,
 }: PromptListProps): JSX.Element {
     const indexById = useMemo(
@@ -79,7 +76,6 @@ export function PromptList({
                                 onCopy={onCopy}
                                 onEdit={onEdit}
                                 onDelete={onDelete}
-                                onRestore={onRestore}
                                 onMove={onMove}
                             />
                         )

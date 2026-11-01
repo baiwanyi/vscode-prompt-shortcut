@@ -5,7 +5,7 @@
  * 注意：下拉内容由 Radix Portal 渲染到 body 下，天然不会冒泡到整行的点击处理；
  * 触发按钮仍在原 DOM 树内，除了自身阻止冒泡，还要把开合事件交给调用方去挡住点击穿透。
  */
-import { ArrowDown, ArrowUp, Copy, MoreHorizontal, Pencil, RotateCcw, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Copy, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { Fragment } from 'react'
 import { Button } from '@components/ui/button'
 import {
@@ -33,12 +33,10 @@ interface MenuEntry {
 
 export interface PromptItemMenuProps {
     label: string
-    isBuiltin: boolean
     canMove: (direction: MoveDirection) => boolean
     onEdit: () => void
     onCopy: () => void
     onMove: (direction: MoveDirection) => void
-    onRestore: () => void
     onDelete: () => void
     /** 菜单开合通知：展开时撤销待发状态，收起时也要让调用方挡住点击穿透 */
     onOpenChange: (open: boolean) => void
@@ -46,12 +44,10 @@ export interface PromptItemMenuProps {
 
 export function PromptItemMenu({
     label,
-    isBuiltin,
     canMove,
     onEdit,
     onCopy,
     onMove,
-    onRestore,
     onDelete,
     onOpenChange,
 }: PromptItemMenuProps): JSX.Element {
@@ -77,16 +73,14 @@ export function PromptItemMenu({
                 onMove('down')
             },
         },
-        isBuiltin
-            ? { key: 'restore', icon: RotateCcw, label: '恢复默认', isGroupStart: true, onSelect: onRestore }
-            : {
-                  key: 'delete',
-                  icon: Trash2,
-                  label: '删除',
-                  isGroupStart: true,
-                  isDestructive: true,
-                  onSelect: onDelete,
-              },
+        {
+            key: 'delete',
+            icon: Trash2,
+            label: '删除',
+            isGroupStart: true,
+            isDestructive: true,
+            onSelect: onDelete,
+        },
     ]
 
     return (

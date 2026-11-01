@@ -10,7 +10,6 @@ import { cn } from 'cn'
 import { ChevronRight } from 'lucide-react'
 import { useRef } from 'react'
 import { PromptItemMenu } from '@components/PromptItemMenu'
-import { Badge } from '@components/ui/badge'
 import { Item, ItemActions, ItemContent, ItemMedia, ItemTitle } from '@components/ui/item'
 import { Spinner } from '@components/ui/spinner'
 import type { MoveDirection, PromptTemplate } from '@shared/types'
@@ -35,8 +34,6 @@ interface PromptItemProps {
     onCopy: (id: string) => void
     onEdit: (id: string) => void
     onDelete: (id: string) => void
-    /** 仅内置模板可用：把该条恢复为出厂内容 */
-    onRestore: (id: string) => void
     onMove: (id: string, direction: MoveDirection) => void
 }
 
@@ -47,7 +44,6 @@ export function PromptItem({
     onCopy,
     onEdit,
     onDelete,
-    onRestore,
     onMove,
 }: PromptItemProps): JSX.Element {
     const Icon = PROMPT_ICON_MAP[prompt.icon]
@@ -90,19 +86,16 @@ export function PromptItem({
             <ItemContent className="min-w-0">
                 <ItemTitle className="min-w-0">
                     <span className="truncate">{prompt.label}</span>
-                    {prompt.builtin ? <Badge variant="outline" className="text-xs font-light">内置</Badge> : null}
                 </ItemTitle>
             </ItemContent>
             <ItemActions onClick={(event): void => event.stopPropagation()}>
                 <PromptItemMenu
                     label={prompt.label}
-                    isBuiltin={prompt.builtin}
                     canMove={canMove}
                     onOpenChange={handleMenuOpenChange}
                     onEdit={(): void => onEdit(prompt.id)}
                     onCopy={(): void => onCopy(prompt.id)}
                     onMove={(direction): void => onMove(prompt.id, direction)}
-                    onRestore={(): void => onRestore(prompt.id)}
                     onDelete={(): void => onDelete(prompt.id)}
                 />
             </ItemActions>

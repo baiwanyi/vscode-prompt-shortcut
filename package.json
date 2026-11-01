@@ -54,12 +54,6 @@
                 "icon": "$(refresh)"
             },
             {
-                "command": "baiwanyi.prompt.reset",
-                "title": "恢复默认提示词",
-                "category": "提示词快捷方式",
-                "icon": "$(history)"
-            },
-            {
                 "command": "baiwanyi.prompt.fixWithCodeBuddy",
                 "title": "修复缺陷",
                 "category": "提示词快捷方式",

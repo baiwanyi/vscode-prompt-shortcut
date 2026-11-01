@@ -49,9 +49,9 @@ export function isChatMode(value: unknown): value is ChatMode {
     return typeof value === 'string' && CHAT_MODES.some((mode) => mode === value)
 }
 
-/** 一条提示词模板 */
+/** 一条提示词模板；预设与用户自建在类型上不作区分，行为完全一致 */
 export interface PromptTemplate {
-    /** 稳定标识，内置模板使用固定 ID 以便重置时覆盖 */
+    /** 稳定标识：编辑、删除与排序都按它定位，重排不改变 id */
     id: string
     /** 按钮上展示的名称，如「提交到 Git」 */
     label: string
@@ -59,8 +59,6 @@ export interface PromptTemplate {
     prompt: string
     icon: PromptIconKey
     mode: ChatMode
-    /** 内置模板不可删除，只能编辑正文 */
-    builtin: boolean
     createdAt: number
     updatedAt: number
 }

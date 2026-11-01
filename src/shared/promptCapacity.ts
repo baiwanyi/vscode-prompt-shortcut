@@ -35,7 +35,6 @@ export function measureAfterSave(list: readonly PromptTemplate[], draft: PromptD
     const candidate: PromptTemplate = {
         ...draft,
         id: draft.id ?? 'pending',
-        builtin: false,
         createdAt: 0,
         updatedAt: 0,
     }

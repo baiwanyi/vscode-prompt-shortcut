@@ -10,6 +10,7 @@ import { CodeBuddyBridge } from './modules/codebuddy/CodeBuddyBridge'
 import { resolveBridgeConfig } from './modules/codebuddy/config'
 import { registerContextActions } from './modules/commands/contextActions'
 import { createReporter } from './modules/common/createReporter'
+import { loadPresets } from './modules/prompt/presets'
 import { PROMPT_STORAGE_KEY, PromptStore } from './modules/prompt/PromptStore'
 import { resolveUpdateSettings } from './modules/update/config'
 import { checkForUpdate } from './modules/update/updateChecker'
@@ -95,7 +96,8 @@ async function checkUpdateOnStartup(context: vscode.ExtensionContext): Promise<v
 export function activate(context: vscode.ExtensionContext): void {
     // 登记同步键：用户开启 Settings Sync 后，提示词随设置一起在多台设备间同步
     context.globalState.setKeysForSync([PROMPT_STORAGE_KEY])
-    const store = new PromptStore(context.globalState)
+    // 预设模板来自 resources/prompts.md，只在存储尚无该键时写入一次
+    const store = new PromptStore(context.globalState, loadPresets())
     // 桥接层按需创建排障日志通道，释放动作统一挂到扩展上下文
     const bridge = new CodeBuddyBridge(resolveBridgeConfig, (disposable): void => {
         context.subscriptions.push(disposable)
@@ -124,10 +126,6 @@ export function activate(context: vscode.ExtensionContext): void {
         }),
         vscode.commands.registerCommand('baiwanyi.prompt.refresh', async () => {
             await provider.refresh()
-        }),
-        vscode.commands.registerCommand('baiwanyi.prompt.reset', async () => {
-            await revealSidebar()
-            provider.resetWithConfirm()
         }),
     )
 

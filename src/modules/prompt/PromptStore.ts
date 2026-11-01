@@ -1,13 +1,15 @@
 /**
  * 提示词模板的持久化与增删改查。
  * 数据落在扩展全局状态（globalState）而非工作区，确保同一套提示词跨项目复用；
- * 该键已在 activate 中登记给 Settings Sync，用户开启同步后可在多台设备间共享；
- * 读取时统一做归一化：补齐被删除的内置模板、剔除结构非法的历史数据，避免脏数据进入 Webview。
- * 顺序以持久化数组为准——用户的排序结果必须保留，只有缺失的内置模板才按出厂顺序补回列表头部。
+ * 该键已在 activate 中登记给 Settings Sync，用户开启同步后可在多台设备间共享。
+ * 预设模板只在「存储里还没有这份列表」时写入一次，此后与用户自建模板完全等价：
+ * 可编辑、可排序、可删除，删空也不会被补回——是否存在存储值才是唯一判据。
+ * 读取时统一做归一化：剔除结构非法的历史数据、重复 id 只保留首个，避免脏数据进入 Webview。
+ * 顺序以持久化数组为准——用户的排序结果必须保留。
  * 旧键（LEGACY_PROMPT_STORAGE_KEY）只在迁移期读取：搬到新键后立即删除，日常读写一律不碰旧键。
- * 注意：所有写操作返回最新列表并立即落盘，调用方不要缓存旧引用；内置模板只允许改文案，不允许删除。
+ * 注意：写操作一律返回最新列表并立即落盘，调用方不要缓存旧引用；
+ * 首次写入预设与后续写操作必须串行，否则初始化可能覆盖掉用户刚落盘的修改。
  */
-import { BUILTIN_PROMPT_IDS, createBuiltinPrompts } from './defaults'
 import type { MoveDirection, PromptDraft, PromptTemplate } from '../../shared/types'
 import type * as vscode from 'vscode'
 import { isRecord } from '../../shared/guards'
@@ -44,7 +46,6 @@ function normalizeTemplate(raw: unknown, index: number): PromptTemplate | null {
         prompt,
         icon: isPromptIconKey(raw.icon) ? raw.icon : 'fileText',
         mode: isChatMode(raw.mode) ? raw.mode : 'craft',
-        builtin: BUILTIN_PROMPT_IDS.includes(id),
         createdAt: typeof raw.createdAt === 'number' ? raw.createdAt : Date.now(),
         updatedAt: typeof raw.updatedAt === 'number' ? raw.updatedAt : Date.now(),
     }
@@ -69,7 +70,14 @@ export class PromptStore {
     /** 迁移进行中的 Promise：激活期与首次读档可能同时触发，据此复用同一次写盘 */
     private legacyMigration: Promise<void> | null = null
 
-    constructor(private readonly memento: vscode.Memento) {}
+    /** 首次写入预设的进行中任务：写操作等它结束再落盘，避免初值覆盖用户修改 */
+    private seeding: PromiseLike<void> | null = null
+
+    constructor(
+        private readonly memento: vscode.Memento,
+        /** 预设模板：仅在存储尚无该键时使用，调用方不要把它当作可回灌的出厂内容 */
+        private readonly presets: readonly PromptTemplate[],
+    ) {}
 
     /**
      * 把旧键里的模板搬到新键，成功后删除旧键；供 activate 在登记同步键后主动调用。
@@ -103,7 +111,7 @@ export class PromptStore {
 
     /**
      * 待迁移的旧数据：新键已有数组即视为已迁移，返回 null。
-     * 据此即使用户清空过自定义模板，也不会被旧键里的历史数据回灌。
+     * 据此即使用户清空过模板，也不会被旧键里的历史数据回灌。
      */
     private legacyPendingData(): unknown[] | null {
         if (Array.isArray(this.memento.get<unknown>(PROMPT_STORAGE_KEY))) {
@@ -115,37 +123,36 @@ export class PromptStore {
 
     /**
      * 读取并归一化模板列表。
-     * 顺序沿用持久化数组，move 的结果因此能真正保留；缺失的内置模板按出厂顺序补在最前，
-     * 这样首次使用与清空存储后的结果仍是稳定出厂序，不会被历史数据打乱。
+     * 存储里已有数组（哪怕已被用户删空成 []）就完全以它为准；
+     * 只有从未落盘过，才依次尝试旧键数据、预设模板，并把结果写回，保证下一次读到的是同一份。
      */
     getAll(): PromptTemplate[] {
         const raw = this.memento.get<unknown>(PROMPT_STORAGE_KEY)
-        // 新键尚未落盘时先按旧键数据渲染，避免升级后首次展开面板显示成出厂内容
-        const stored = Array.isArray(raw) ? normalizeList(raw) : this.takeLegacyPrompts()
-
-        const storedIds = new Set(stored.map((item) => item.id))
-        const missingBuiltins = createBuiltinPrompts().filter((item) => !storedIds.has(item.id))
-        // 重复 id 只保留首个：脏数据可能由早期版本或手工同步写入，重复渲染会让条目 id 冲突
-        const seenIds = new Set<string>()
-        const result: PromptTemplate[] = []
-        for (const item of [...missingBuiltins, ...stored]) {
-            if (seenIds.has(item.id)) {
-                continue
-            }
-            seenIds.add(item.id)
-            result.push(item)
+        if (Array.isArray(raw)) {
+            return normalizeList(raw)
         }
-        return result
+        // 新键尚未落盘时先按旧键数据渲染，避免升级后首次展开面板显示成预设内容
+        const legacy = this.legacyPendingData()
+        if (legacy) {
+            void this.migrateLegacyStorage()
+            return normalizeList(legacy)
+        }
+        return this.seedPresets()
     }
 
-    /** 无新键数据时改读旧键，并顺手触发迁移；返回值只用于本轮渲染，落盘由迁移完成 */
-    private takeLegacyPrompts(): PromptTemplate[] {
-        const legacy = this.legacyPendingData()
-        if (!legacy) {
-            return []
-        }
-        void this.migrateLegacyStorage()
-        return normalizeList(legacy)
+    /** 首次使用：返回一份预设副本并异步落盘，与后续写操作的先后由 seeding 串行保证 */
+    private seedPresets(): PromptTemplate[] {
+        const seeds = this.presets.map((item) => ({ ...item }))
+        // 成功与失败都要清空：写盘失败时下一次 getAll 会重新播种，不能让串行标记永久占位
+        this.seeding = this.memento.update(PROMPT_STORAGE_KEY, seeds).then(
+            (): void => {
+                this.seeding = null
+            },
+            (): void => {
+                this.seeding = null
+            },
+        )
+        return seeds
     }
 
     /** 按 id 取单条模板；不存在时返回 undefined，由调用方决定提示文案与后续动作 */
@@ -180,7 +187,6 @@ export class PromptStore {
                 prompt: draft.prompt,
                 icon: draft.icon,
                 mode: draft.mode,
-                builtin: false,
                 createdAt: now,
                 updatedAt: now,
             })
@@ -189,9 +195,9 @@ export class PromptStore {
         return list
     }
 
-    /** 删除自定义模板；内置模板静默忽略 */
+    /** 删除模板；预设与自建一视同仁，删掉就只留在存储的历史里 */
     async remove(id: string): Promise<PromptTemplate[]> {
-        const list = this.getAll().filter((item) => item.id !== id || item.builtin)
+        const list = this.getAll().filter((item) => item.id !== id)
         await this.persist(list)
         return list
     }
@@ -217,26 +223,10 @@ export class PromptStore {
         return list
     }
 
-    /** 恢复为出厂状态：丢弃全部自定义模板，内置模板正文回到默认值 */
-    async reset(): Promise<PromptTemplate[]> {
-        const list = createBuiltinPrompts()
-        await this.persist(list)
-        return list
-    }
-
-    /** 把单条内置模板恢复为出厂定义；id 不属于内置模板时静默返回原列表 */
-    async restoreBuiltin(id: string): Promise<PromptTemplate[]> {
-        const list = this.getAll()
-        const seed = createBuiltinPrompts().find((item) => item.id === id)
-        if (!seed) {
-            return list
-        }
-        const next = list.map((item) => (item.id === id ? seed : item))
-        await this.persist(next)
-        return next
-    }
-
     private async persist(list: PromptTemplate[]): Promise<void> {
+        if (this.seeding) {
+            await this.seeding
+        }
         await this.memento.update(PROMPT_STORAGE_KEY, list)
     }
 }
