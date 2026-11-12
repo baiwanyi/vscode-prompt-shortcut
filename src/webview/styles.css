@@ -218,6 +218,20 @@ body {
     font-size: var(--text-xs);
 }
 
+/* Tooltip 文案对齐 VSCode 原生 hover：字体族随 body 继承 vscode-font-family，字号取 UI 字号而非 0.85 倍的小号。
+   宽度同时收敛到视口内——组件自带 max-w-xs 固定 320px，侧边栏较窄时提示会越过面板右缘被裁掉，
+   这里取「320px 与视口减 16px」的较小值，并允许长文案换行、超长单词断字，避免撑出视口。
+   组件自带样式位于 utilities 层，本规则不套 layer，特异性与层级都高于它，无需 important */
+[data-slot='tooltip-content'] {
+    font-family: var(--vscode-font-family, system-ui, sans-serif);
+    font-size: var(--vscode-font-size, 13px);
+    font-weight: 400;
+    line-height: 1.5;
+    max-width: min(20rem, calc(100vw - 16px));
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
 /* shadcn preset 的基础层：统一边框色与 outline 色，指针手势由 --pointer 参数开启 */
 @layer base {
     * {

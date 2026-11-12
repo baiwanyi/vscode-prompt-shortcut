@@ -4,7 +4,7 @@
  * 所有消息只承载纯数据，宿主侧必须重新校验载荷，不可信任 Webview 传入的 id 与正文。
  * 注意：新增消息类型时两侧 switch 必须同时补齐，否则 noFallthroughCasesInSwitch 会报错。
  */
-import type { MoveDirection, PromptDraft, PromptStatePayload } from './types'
+import type { MoveDirection, PromptDraft, PromptStatePayload, ToolActionId } from './types'
 
 /** Webview -> 宿主 */
 export type WebviewToHostMessage =
@@ -18,6 +18,8 @@ export type WebviewToHostMessage =
       }
     | { type: 'deletePrompt'; id: string }
     | { type: 'movePrompt'; id: string; direction: MoveDirection }
+    /** 执行工具条上的环境维护动作；id 由宿主查表校验，非法取值一律拒绝 */
+    | { type: 'runTool'; id: ToolActionId }
 
 /** 宿主 -> Webview */
 export type HostToWebviewMessage =

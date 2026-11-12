@@ -10,6 +10,7 @@ import { useMemo, useState } from 'react'
 import { PanelHeader } from '@components/PanelHeader'
 import { PromptEditorDialog } from '@components/PromptEditorDialog'
 import { PromptList } from '@components/PromptList'
+import { ToolList } from '@components/ToolList'
 import { Toaster } from '@components/ui/sonner'
 import { Spinner } from '@components/ui/spinner'
 import { usePromptEditor } from '@webview/hooks/usePromptEditor'
@@ -22,6 +23,7 @@ export function Bootstrap(): JSX.Element {
     const [query, setQuery] = useState('')
     const payload = usePromptState()
     const prompts = useMemo(() => payload?.prompts ?? [], [payload])
+    const tools = useMemo(() => payload?.tools ?? [], [payload])
     const { items, isFiltering } = useMemo(() => filterPrompts(prompts, query), [prompts, query])
     const { editing, isOpen, openEdit, closeDialog, submit } = usePromptEditor(prompts)
 
@@ -46,6 +48,7 @@ export function Bootstrap(): JSX.Element {
                         onDelete={(id) => postToHost({ type: 'deletePrompt', id })}
                         onMove={(id, direction) => postToHost({ type: 'movePrompt', id, direction })}
                     />
+                    <ToolList tools={tools} onRun={(id) => postToHost({ type: 'runTool', id })} />
                 </>
             ) : (
                 <div className="flex min-h-0 flex-1 justify-center p-3">

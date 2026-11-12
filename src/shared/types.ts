@@ -83,12 +83,25 @@ export interface CodeBuddyStatus {
     autoSend: boolean
 }
 
+/** 环境维护动作标识：与提示词模板无关，不参与存储、同步与容量统计 */
+export type ToolActionId = 'restartEslint' | 'restartTsServer' | 'reloadWindow'
+
+/** 工具动作在列表中的展示元数据；命令 ID 与失败提示属宿主内部细节，不下发 */
+export interface ToolActionInfo {
+    id: ToolActionId
+    label: string
+    /** 悬停说明：交代动作后果，不重复标题 */
+    description: string
+}
+
 /** 宿主推送给 Webview 的完整状态 */
 export interface PromptStatePayload {
     prompts: PromptTemplate[]
     /** 整份列表序列化后的字节数，用于界面展示容量用量（上限见 shared/promptLimits） */
     usedBytes: number
     codebuddy: CodeBuddyStatus
+    /** 追加在提示词列表末尾的工具动作，顺序由宿主决定 */
+    tools: ToolActionInfo[]
 }
 
 /** 发送结果，用于宿主内部决策是否走降级链路 */

@@ -3,7 +3,7 @@
     "name": "prompt-shortcut",
     "displayName": "Prompt Shortcut for VSCode",
     "description": "CodeBuddy 代码开发提示词快捷方式",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "publisher": "Baiwanyi",
     "license": "MIT",
     "repository": {
@@ -82,6 +82,24 @@
                 "title": "代码重构",
                 "category": "提示词快捷方式",
                 "icon": "$(symbol-structure)"
+            },
+            {
+                "command": "baiwanyi.prompt.restartEslint",
+                "title": "重启 ESLint 服务",
+                "category": "提示词快捷方式",
+                "icon": "$(debug-restart)"
+            },
+            {
+                "command": "baiwanyi.prompt.restartTsServer",
+                "title": "重启 TS 服务",
+                "category": "提示词快捷方式",
+                "icon": "$(debug-restart)"
+            },
+            {
+                "command": "baiwanyi.prompt.reloadWindow",
+                "title": "重新加载窗口",
+                "category": "提示词快捷方式",
+                "icon": "$(refresh)"
             }
         ],
         "submenus": [
@@ -126,6 +144,18 @@
                 {
                     "command": "baiwanyi.prompt.refactorWithCodeBuddy",
                     "group": "2_structure@1"
+                },
+                {
+                    "command": "baiwanyi.prompt.restartEslint",
+                    "group": "9_tools@1"
+                },
+                {
+                    "command": "baiwanyi.prompt.restartTsServer",
+                    "group": "9_tools@2"
+                },
+                {
+                    "command": "baiwanyi.prompt.reloadWindow",
+                    "group": "9_tools@3"
                 }
             ],
             "view/title": [

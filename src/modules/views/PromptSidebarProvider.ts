@@ -17,6 +17,8 @@ import { describeError } from '../../shared/errors'
 import { checkCapacity, measurePromptsBytes } from '../../shared/promptCapacity'
 import { CodeBuddyAvailabilityPoller } from '../codebuddy/CodeBuddyAvailabilityPoller'
 import { dispatchPrompt } from '../codebuddy/dispatchPrompt'
+import { runToolAction } from '../commands/runToolAction'
+import { findToolAction, listToolActions } from '../commands/toolActions'
 import { parseDraft, resolveSendText, validateDraft } from '../prompt/draft'
 
 export class PromptSidebarProvider implements vscode.WebviewViewProvider {
@@ -136,6 +138,10 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
                 await this.pushState()
                 break
             }
+            case 'runTool': {
+                await this.runToolById(message.id)
+                break
+            }
             default: {
                 const exhaustive: never = message
                 throw new Error(`未处理的消息类型：${JSON.stringify(exhaustive)}`)
@@ -229,6 +235,21 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
         await this.dispatch(resolveSendText(target), target.mode)
     }
 
+    /**
+     * 执行工具条上的环境维护动作：id 来自 Webview，必须查表校验后再转发，
+     * 避免未知 id 被直接拼进 executeCommand；结果与命令面板入口共用 runToolAction 的提示口径。
+     */
+    private async runToolById(id: string): Promise<void> {
+        const entry = findToolAction(id)
+        if (!entry) {
+            await this.messenger.notify('warn', '未知的工具命令，请刷新面板后重试。')
+            return
+        }
+        await runToolAction(entry, (level, message): void => {
+            void this.messenger.notify(level, message)
+        })
+    }
+
     /** 发送并把结果反馈到面板：编排与右键命令共用 dispatchPrompt，这里只把 toast 通道适配进去 */
     private async dispatch(prompt: string, mode?: PromptDraft['mode']): Promise<void> {
         await dispatchPrompt(this.bridge, prompt, mode, (level, message): void => {
@@ -252,6 +273,8 @@ export class PromptSidebarProvider implements vscode.WebviewViewProvider {
             usedBytes: measurePromptsBytes(prompts),
             // 可用性与 autoSend 由 bridge 统一给出，Provider 不再直接触碰配置键
             codebuddy: this.bridge.getStatus(commandId !== ''),
+            // 工具条清单固定来自宿主表，Webview 只负责渲染，避免两侧各维护一份
+            tools: listToolActions(),
         }
         await this.messenger.post({ type: 'state', payload })
         if (commandId !== '') {

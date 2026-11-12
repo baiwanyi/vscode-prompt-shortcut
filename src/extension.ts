@@ -9,6 +9,7 @@ import * as vscode from 'vscode'
 import { CodeBuddyBridge } from './modules/codebuddy/CodeBuddyBridge'
 import { resolveBridgeConfig } from './modules/codebuddy/config'
 import { registerContextActions } from './modules/commands/contextActions'
+import { registerToolActions } from './modules/commands/registerToolActions'
 import { createReporter } from './modules/common/createReporter'
 import { loadPresets } from './modules/prompt/presets'
 import { PROMPT_STORAGE_KEY, PromptStore } from './modules/prompt/PromptStore'
@@ -127,6 +128,8 @@ export function activate(context: vscode.ExtensionContext): void {
     )
 
     registerContextActions(context, bridge, notify)
+    // 环境维护类命令（重启 ESLint / TS、重载窗口）与提示词链路无关，单独注册
+    registerToolActions(context, notify)
 
     context.subscriptions.push(
         vscode.workspace.onDidChangeConfiguration((event) => {

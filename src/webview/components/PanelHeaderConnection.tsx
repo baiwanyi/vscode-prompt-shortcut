@@ -2,11 +2,13 @@
  * 面板头部的连接状态指示：图标 + Tooltip 文案，只负责呈现。
  * tone 语义由 lib/connection-state 的纯函数产出，颜色映射留在本组件的模块级常量里，
  * 样式令牌调整因此不必回改领域逻辑。
- * 注意：Tooltip 的 Provider 由 main.tsx 统一提供，本组件不重复包裹。
+ * 注意：Tooltip 的 Provider 由 main.tsx 统一提供，本组件不重复包裹；
+ * 提示由 useAutoDismissTooltip 计时收起，鼠标停在图标上时不会长期遮挡标题。
  */
 import { cn } from 'cn'
 import { Sparkles } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@components/ui/tooltip'
+import { useAutoDismissTooltip } from '@webview/hooks/useAutoDismissTooltip'
 import type { ConnectionTone } from '@webview/lib/connection-state'
 import type { JSX } from 'react'
 
@@ -23,8 +25,10 @@ interface PanelHeaderConnectionProps {
 }
 
 export function PanelHeaderConnection({ tone, text }: PanelHeaderConnectionProps): JSX.Element {
+    const tooltip = useAutoDismissTooltip()
+
     return (
-        <Tooltip>
+        <Tooltip open={tooltip.isOpen} onOpenChange={tooltip.onOpenChange}>
             <TooltipTrigger asChild>
                 <Sparkles className={cn('size-4', CONNECTION_ICON_CLASS[tone])} />
             </TooltipTrigger>
